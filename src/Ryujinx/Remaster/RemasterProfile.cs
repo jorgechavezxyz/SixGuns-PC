@@ -12,7 +12,9 @@ internal static class RemasterProfile
 {
     public static string GameRoot => Path.Combine(AppDataManager.BaseDirPath, "sdcard", "switch", "sixguns");
     public static string GamePath => Path.Combine(GameRoot, "sixguns.nro");
-    public static string BundledNro => Path.Combine(AppContext.BaseDirectory, "sixguns.nro");
+    public static string BundledNro => OperatingSystem.IsMacOS() && AppContext.BaseDirectory.TrimEnd(Path.DirectorySeparatorChar).EndsWith("MacOS", StringComparison.Ordinal)
+        ? Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "Resources", "sixguns.nro"))
+        : Path.Combine(AppContext.BaseDirectory, "sixguns.nro");
 
     public static void Apply()
     {
