@@ -35,6 +35,16 @@ jobs:
           Rename-Item desktop-publish/Ryujinx.exe 'Six Guns Remaster-NX.exe'
           Copy-Item REMASTER.md 'desktop-publish/START HERE.md'
           Compress-Archive desktop-publish/* SixGuns-Remaster-NX-${{ matrix.rid }}.zip
+      - name: Windows first-run smoke test
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $root = Join-Path $env:RUNNER_TEMP 'remaster-first-run'
+          New-Item -ItemType Directory -Force $root | Out-Null
+          $process = Start-Process -FilePath './desktop-publish/Six Guns Remaster-NX.exe' -ArgumentList "--root-data-dir $root" -PassThru
+          Start-Sleep -Seconds 20
+          if ($process.HasExited) { throw "Launcher exited during first run: $($process.ExitCode)" }
+          Stop-Process -Id $process.Id
       - name: Package and verify Mac app
         if: runner.os == 'macOS'
         shell: bash
@@ -48,6 +58,12 @@ jobs:
           find "$app/Contents/MacOS" -name '*.dylib' -exec codesign --force --sign - {} \;
           codesign --force --sign - --entitlements distribution/macos/entitlements.xml "$app"
           codesign --verify --deep --strict "$app"
+          mkdir -p "$RUNNER_TEMP/remaster-first-run"
+          "$app/Contents/MacOS/Ryujinx" --root-data-dir "$RUNNER_TEMP/remaster-first-run" > "$RUNNER_TEMP/launcher-smoke.log" 2>&1 &
+          launcher_pid=$!
+          sleep 20
+          if ! kill -0 "$launcher_pid" 2>/dev/null; then cat "$RUNNER_TEMP/launcher-smoke.log"; exit 1; fi
+          kill "$launcher_pid"
           ditto -c -k --keepParent "$app" SixGuns-Remaster-NX-${{ matrix.rid }}.zip
       - uses: actions/upload-artifact@v4
         with:
