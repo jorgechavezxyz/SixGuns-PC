@@ -1,0 +1,91 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="Ryujinx.Ava.UI.Views.Main.RemasterLauncherView"
+             Background="#12171A" x:CompileBindings="False">
+  <UserControl.Styles>
+    <Style Selector="TextBlock"><Setter Property="Foreground" Value="#ECE5D7" /></Style>
+    <Style Selector="Button"><Setter Property="Padding" Value="20,13" /><Setter Property="CornerRadius" Value="7" /><Setter Property="FontSize" Value="15" /></Style>
+    <Style Selector="Button.primary"><Setter Property="Background" Value="#DEB46C" /><Setter Property="Foreground" Value="#201C15" /><Setter Property="FontWeight" Value="SemiBold" /><Setter Property="HorizontalContentAlignment" Value="Center" /></Style>
+    <Style Selector="Button.primary:pointerover /template/ ContentPresenter"><Setter Property="Background" Value="#F0CA88" /><Setter Property="Foreground" Value="#201C15" /></Style>
+    <Style Selector="TextBlock.muted"><Setter Property="Foreground" Value="#A8AFAF" /><Setter Property="TextWrapping" Value="Wrap" /><Setter Property="LineHeight" Value="23" /></Style>
+    <Style Selector="Button.link"><Setter Property="Background" Value="Transparent" /><Setter Property="Foreground" Value="#B7BDBB" /><Setter Property="Padding" Value="0,8" /><Setter Property="FontSize" Value="12" /></Style>
+  </UserControl.Styles>
+  <Grid ColumnDefinitions="5*,6*">
+    <Border ClipToBounds="True" Background="#242A29">
+      <Grid>
+        <Viewbox Stretch="UniformToFill" HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
+          <Canvas Width="600" Height="850">
+            <Rectangle Width="600" Height="850">
+              <Rectangle.Fill><LinearGradientBrush StartPoint="0%,0%" EndPoint="0%,100%"><GradientStop Color="#384D51" Offset="0" /><GradientStop Color="#B38859" Offset="0.65" /><GradientStop Color="#282B27" Offset="1" /></LinearGradientBrush></Rectangle.Fill>
+            </Rectangle>
+            <Ellipse Width="185" Height="185" Canvas.Left="275" Canvas.Top="310" Fill="#E4BC7A" Opacity="0.85" />
+            <Path Data="M0,535 L75,510 100,460 190,460 205,510 270,540 350,480 420,480 445,535 600,555 600,850 0,850Z" Fill="#6C6550" />
+            <Path Data="M0,610 L75,590 110,615 210,570 300,610 400,575 490,590 600,565 600,850 0,850Z" Fill="#41473D" />
+            <Path Data="M0,690 Q160,620 330,690 T600,680 L600,850 0,850Z" Fill="#232F2D" />
+            <Path Data="M90,700 L90,590 Q90,580 100,580 Q110,580 110,590 L110,630 126,630 126,610 Q126,603 133,603 Q140,603 140,610 L140,636 Q140,645 132,645 L110,645 110,700Z M90,660 L70,660 Q60,660 60,650 L60,624 Q60,617 67,617 Q74,617 74,624 L74,645 90,645Z" Fill="#192724" />
+          </Canvas>
+        </Viewbox>
+        <Border Background="#26000000" />
+        <Grid Margin="42" RowDefinitions="Auto,*,Auto">
+          <TextBlock Text="THE FRONTIER AWAITS" FontSize="12" LetterSpacing="3" Foreground="#E8C894" />
+          <StackPanel Grid.Row="1" VerticalAlignment="Top" Margin="0,58,0,0" Spacing="12">
+            <TextBlock Text="SIX&#10;GUNS" FontSize="68" FontWeight="Black" LineHeight="66" LetterSpacing="2" />
+            <TextBlock Text="REMASTER — NX" FontSize="15" LetterSpacing="4" Foreground="#E8C894" />
+            <Border Height="2" Width="44" Background="#E8C894" HorizontalAlignment="Left" Margin="0,12" />
+            <TextBlock Text="Back to the untamed West." FontSize="17" TextWrapping="Wrap" />
+          </StackPanel>
+          <StackPanel Grid.Row="2" Spacing="7">
+            <TextBlock Text="YOUR GAME. YOUR FRONTIER." FontSize="11" LetterSpacing="2" />
+            <TextBlock Text="Single player · LAN multiplayer" FontSize="12" Foreground="#A6B3AB" />
+          </StackPanel>
+        </Grid>
+      </Grid>
+    </Border>
+    <ScrollViewer Grid.Column="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+      <Grid Margin="42,36" RowDefinitions="Auto,*,Auto" MinHeight="580">
+        <TextBlock Text="SIX GUNS REMASTER-NX" FontSize="11" LetterSpacing="2" Foreground="#A8AFAF" />
+        <StackPanel Grid.Row="1" VerticalAlignment="Center" Spacing="18" Margin="0,30">
+          <StackPanel x:Name="SetupPanel" Spacing="16">
+            <TextBlock x:Name="StepLabel" Text="STEP 1 OF 3" Foreground="#DEB46C" FontSize="12" LetterSpacing="2" />
+            <TextBlock x:Name="Heading" Text="Make yourself at home." FontSize="30" FontWeight="SemiBold" TextWrapping="Wrap" />
+            <TextBlock x:Name="Description" Classes="muted" />
+            <StackPanel x:Name="KeysPanel" Spacing="12">
+              <Button x:Name="KeysButton" Content="Choose prod.keys" Classes="primary" HorizontalAlignment="Stretch" Click="ChooseKeys" />
+            </StackPanel>
+            <StackPanel x:Name="FirmwarePanel" Spacing="10" IsVisible="False">
+              <Button Content="Choose firmware ZIP" Classes="primary" HorizontalAlignment="Stretch" Click="ChooseFirmwareZip" />
+              <Button Content="Choose firmware folder" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Click="ChooseFirmwareFolder" />
+            </StackPanel>
+            <StackPanel x:Name="FilesPanel" Spacing="10" IsVisible="False">
+              <Button Content="Choose official APK" HorizontalAlignment="Stretch" Click="ChooseApk" />
+              <TextBlock x:Name="ApkLabel" Text="No APK selected" Classes="muted" FontSize="12" TextTrimming="CharacterEllipsis" />
+              <Button Content="Choose OBB folder" HorizontalAlignment="Stretch" Click="ChooseObb" />
+              <TextBlock x:Name="ObbLabel" Text="No folder selected" Classes="muted" FontSize="12" TextTrimming="CharacterEllipsis" />
+              <Button x:Name="InstallButton" Content="Install game" Classes="primary" HorizontalAlignment="Stretch" Click="InstallGame" IsEnabled="False" />
+            </StackPanel>
+            <Button x:Name="BackButton" Content="Back" Classes="link" Click="GoBack" IsVisible="False" />
+          </StackPanel>
+          <StackPanel x:Name="ReadyPanel" IsVisible="False" Spacing="18">
+            <TextBlock Text="READY TO RIDE" FontSize="12" LetterSpacing="2" Foreground="#DEB46C" />
+            <TextBlock Text="Welcome to the West." FontSize="32" FontWeight="SemiBold" TextWrapping="Wrap" />
+            <TextBlock Text="Your next adventure is one click away. Connect a controller, or use your keyboard." Classes="muted" />
+            <Button x:Name="PlayButton" Content="Play" Classes="primary" Height="62" FontSize="20" HorizontalAlignment="Stretch" Click="Play" />
+            <Grid ColumnDefinitions="*,*">
+              <Button Content="Controls" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Margin="0,0,5,0" Click="Controls" />
+              <Button Content="Quit" Grid.Column="1" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Margin="5,0,0,0" Click="Quit" />
+            </Grid>
+            <TextBlock Text="F11: full screen · Esc: return from the game" Classes="muted" FontSize="12" />
+          </StackPanel>
+          <ProgressBar x:Name="Progress" IsVisible="False" IsIndeterminate="True" Height="4" Foreground="#DEB46C" />
+          <TextBlock x:Name="Status" TextWrapping="Wrap" FontSize="13" Foreground="#C6CFC7" />
+          <Button x:Name="CancelButton" Content="Cancel installation" Classes="link" Click="Cancel" IsVisible="False" />
+        </StackPanel>
+        <StackPanel Grid.Row="2" Spacing="4">
+          <Button x:Name="RepairButton" Content="Set up files again" Classes="link" Click="RestartSetup" IsVisible="False" />
+          <TextBlock Text="Built on Ryubing / Ryujinx · MIT license" FontSize="11" Foreground="#8E9996" />
+          <TextBlock Text="Unofficial fan port. Six Guns belongs to Gameloft.&#10;Game files, Switch keys and firmware are not included." FontSize="11" Foreground="#8E9996" TextWrapping="Wrap" />
+        </StackPanel>
+      </Grid>
+    </ScrollViewer>
+  </Grid>
+</UserControl>

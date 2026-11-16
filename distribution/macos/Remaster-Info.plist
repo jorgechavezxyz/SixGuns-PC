@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict>
+  <key>CFBundleName</key><string>Six Guns Remaster-NX</string>
+  <key>CFBundleDisplayName</key><string>Six Guns Remaster-NX</string>
+  <key>CFBundleExecutable</key><string>Ryujinx</string>
+  <key>CFBundleIdentifier</key><string>org.sixguns.remasternx</string>
+  <key>CFBundlePackageType</key><string>APPL</string>
+  <key>CFBundleShortVersionString</key><string>0.1.0</string>
+  <key>CFBundleVersion</key><string>1</string>
+  <key>CFBundleIconFile</key><string>Ryujinx.icns</string>
+  <key>LSMinimumSystemVersion</key><string>12.0</string>
+  <key>NSHighResolutionCapable</key><true/>
+  <key>LSApplicationCategoryType</key><string>public.app-category.games</string>
+  <key>NSHumanReadableCopyright</key><string>Built on Ryujinx and Ryubing. See LICENSE.txt and THIRDPARTY.md. Six Guns is a Gameloft trademark.</string>
+</dict></plist>
