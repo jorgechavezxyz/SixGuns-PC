@@ -53,6 +53,7 @@ jobs:
           mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources"
           cp -R desktop-publish/. "$app/Contents/MacOS/"
           mv "$app/Contents/MacOS/sixguns.nro" "$app/Contents/Resources/"
+          mv "$app/Contents/MacOS/THIRDPARTY.md" "$app/Contents/MacOS/LICENSE.txt" "$app/Contents/Resources/"
           cp distribution/macos/Remaster-Info.plist "$app/Contents/Info.plist"
           cp distribution/macos/Ryujinx.icns LICENSE.txt "$app/Contents/Resources/"
           chmod +x "$app/Contents/MacOS/Ryujinx"
