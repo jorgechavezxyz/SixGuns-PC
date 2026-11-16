@@ -30,9 +30,7 @@ namespace Ryujinx.Ava.UI.Windows
                     ? FANavigationViewPaneDisplayMode.Left
                     : FANavigationViewPaneDisplayMode.Top;
 
-            Height = ConfigurationState.Instance.ShowOldUI
-                ? 906
-                : 954; // nav panel is put on top with custom title bar so account for new height
+            Height = 720; // Keep Save/Cancel visible on laptop screens; input content scrolls.
 
             Load();
         }
