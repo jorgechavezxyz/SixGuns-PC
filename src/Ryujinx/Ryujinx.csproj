@@ -17,6 +17,7 @@
 
   <ItemGroup>
     <Content Include="Assets/Remaster/sixguns.nro" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" TargetPath="sixguns.nro" />
+    <Content Include="../../LICENSE-REMASTER.txt" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" TargetPath="LICENSE-REMASTER.txt" />
   </ItemGroup>
   <Target Name="RemoveNativePackagePdbs" AfterTargets="ResolvePackageAssets">
     <ItemGroup Condition="'$(Configuration)'=='Release'">
