@@ -12,6 +12,17 @@ namespace Ryujinx.Ava.Remaster;
 // This intentionally rejects repacks, including APKs containing the same engine.
 public static class GameInstaller
 {
+    public static void ValidatePort(string path)
+    {
+        using var stream = File.OpenRead(path);
+        using var reader = new BinaryReader(stream);
+        if (stream.Length < 0x80) throw new InvalidDataException("The bundled port is incomplete. Extract a fresh launcher copy.");
+        stream.Position = 0x10;
+        if (reader.ReadUInt32() != 0x304f524e) throw new InvalidDataException("The bundled port is not an NRO executable.");
+        stream.Position = 0x18;
+        uint size = reader.ReadUInt32();
+        if (size < 0x80 || size > stream.Length) throw new InvalidDataException("The bundled port is truncated. Extract a fresh launcher copy.");
+    }
     public const string ApkHash = "224f2f7d9e4e3f49ffbc40094747cb85cae798ce2dc95c14e7026c23d8840f37";
     public const string EngineHash = "502fd831bcd6fe24d7e79f4ef41c3a36c7b6f02515df507c56618b4fd421d08e";
     public const string MainObb = "main.29431.com.gameloft.android.ANMP.GloftSXHM.obb";
@@ -64,6 +75,7 @@ public static class GameInstaller
 
     public static void Install(string apk, string obbFolder, string nro, string root, Action<string> report, CancellationToken token)
     {
+        ValidatePort(nro);
         // Stage on the same volume. Existing saves, identity, preferences and mods stay in place.
         string parent = Path.GetDirectoryName(root)!;
         Directory.CreateDirectory(parent);

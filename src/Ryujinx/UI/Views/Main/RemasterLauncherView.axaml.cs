@@ -209,6 +209,7 @@ public partial class RemasterLauncherView : UserControl
         {
             if (!GameInstaller.IsInstalled(RemasterProfile.GameRoot)) { Refresh(); return; }
             // Update only our executable; game data and saves remain in place.
+            GameInstaller.ValidatePort(RemasterProfile.BundledNro);
             File.Copy(RemasterProfile.BundledNro, RemasterProfile.GamePath, true);
             File.WriteAllText(Path.Combine(RemasterProfile.GameRoot, "emulator_mode"), "");
             RemasterProfile.Apply();
@@ -218,7 +219,11 @@ public partial class RemasterLauncherView : UserControl
             _window.ViewModel.SelectedIcon = apps[0].Icon;
             await _window.ViewModel.LoadApplication(apps[0]);
         }
-        catch (Exception ex) { Status.Text = "Couldn't start the game. " + ex.Message; }
+        catch (Exception ex)
+        {
+            Ryujinx.Common.Logging.Logger.Error?.Print(Ryujinx.Common.Logging.LogClass.Application, ex.ToString());
+            Status.Text = "Couldn't start the game. " + ex.Message;
+        }
         finally { PlayButton.IsEnabled = true; }
     }
 
