@@ -38,6 +38,9 @@ namespace Ryujinx.Input.HLE
         private List<InputConfig> _inputConfig;
         private List<InputConfig> _requestedInputConfig;
         private List<PlayerInputAssignment> _playerInputAssignments;
+        private PlayerInputAssignment _automaticPlayerOneAssignment;
+        public bool AutoAssignPlayerOneGamepads { get; set; }
+
         private bool _enableKeyboard;
         private bool _enableMouse;
         private Switch _device;
@@ -87,6 +90,11 @@ namespace Ryujinx.Input.HLE
 
             lock (_lock)
             {
+                if (_device == null || _isDisposed)
+                {
+                    return;
+                }
+
                 // Forcibly disconnect any controllers with this ID.
                 for (int i = 0; i < _controllers.Length; i++)
                 {
@@ -116,6 +124,11 @@ namespace Ryujinx.Input.HLE
 
             lock (_lock)
             {
+                if (_device == null || _isDisposed)
+                {
+                    return;
+                }
+
                 for (int i = 0; i < _controllers.Length; i++)
                 {
                     if (_controllers[i] != null && PlayerHasAssignedControllerId((PlayerIndex)i, id))
@@ -183,6 +196,49 @@ namespace Ryujinx.Input.HLE
                 _requestedInputConfig = inputConfig?.ToList() ?? [];
                 _playerInputAssignments = playerInputAssignments?.ToList() ?? [];
 
+                if (_isDisposed)
+                {
+                    return;
+                }
+
+                _automaticPlayerOneAssignment = null;
+                if (AutoAssignPlayerOneGamepads)
+                {
+                    var playerOne = _requestedInputConfig.FirstOrDefault(config => (int)config.PlayerIndex == (int)PlayerIndex.Player1);
+                    if (playerOne != null)
+                    {
+                        var assignment = GetPlayerInputAssignment(playerOne);
+                        _automaticPlayerOneAssignment = new PlayerInputAssignment
+                        {
+                            PlayerIndex = playerOne.PlayerIndex,
+                            EnableDynamicInputSwap = true,
+                            Devices = [.. assignment.Devices],
+                        };
+
+                        if (!_automaticPlayerOneAssignment.Devices.Any(device => device.Type == AssignedInputDeviceType.Keyboard) &&
+                            !_keyboardDriver.GamepadsIds.IsEmpty)
+                        {
+                            _automaticPlayerOneAssignment.Devices.Add(new AssignedInputDevice
+                            {
+                                Type = AssignedInputDeviceType.Keyboard,
+                                Id = _keyboardDriver.GamepadsIds[0],
+                            });
+                        }
+
+                        foreach (string id in _gamepadDriver.GamepadsIds)
+                        {
+                            if (!_automaticPlayerOneAssignment.Devices.Any(device => device.Type == AssignedInputDeviceType.Controller && device.Id == id))
+                            {
+                                _automaticPlayerOneAssignment.Devices.Add(new AssignedInputDevice
+                                {
+                                    Type = AssignedInputDeviceType.Controller,
+                                    Id = id,
+                                });
+                            }
+                        }
+                    }
+                }
+
                 NpadController[] oldControllers = _controllers.ToArray();
 
                 List<InputConfig> validInputs = [];
@@ -247,6 +303,11 @@ namespace Ryujinx.Input.HLE
 
         private PlayerInputAssignment GetPlayerInputAssignment(InputConfig inputConfig)
         {
+            if (_automaticPlayerOneAssignment?.PlayerIndex == inputConfig.PlayerIndex)
+            {
+                return _automaticPlayerOneAssignment;
+            }
+
             PlayerInputAssignment playerInputAssignment = _playerInputAssignments.FirstOrDefault(assignment => assignment.PlayerIndex == inputConfig.PlayerIndex);
 
             if (playerInputAssignment != null)
@@ -380,7 +441,7 @@ namespace Ryujinx.Input.HLE
             ReloadConfiguration(inputConfig, playerInputAssignments, enableKeyboard, enableMouse);
         }
 
-        public void Update(float aspectRatio = 1)
+        public void Update(float aspectRatio = 1, GamepadInput playerOneOverlay = default)
         {
             lock (_lock)
             {
@@ -409,6 +470,14 @@ namespace Ryujinx.Input.HLE
                         controller.UpdateRumble(_device.Hid.Npads.GetRumbleQueue(playerIndex));
 
                         inputState = controller.GetHLEInputState();
+                        if (playerIndex == PlayerIndex.Player1)
+                        {
+                            inputState.Buttons |= playerOneOverlay.Buttons;
+                            if (playerOneOverlay.RStick.Dx != 0 || playerOneOverlay.RStick.Dy != 0)
+                            {
+                                inputState.RStick = playerOneOverlay.RStick;
+                            }
+                        }
 
                         inputState.Buttons |= _device.Hid.UpdateStickButtons(inputState.LStick, inputState.RStick);
 

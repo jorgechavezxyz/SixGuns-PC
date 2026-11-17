@@ -2,6 +2,9 @@ using Ryujinx.Ava.Systems.Configuration;
 using Ryujinx.Ava.Systems.Configuration.System;
 using Ryujinx.Ava.Systems.Configuration.UI;
 using Ryujinx.Common.Configuration;
+using Ryujinx.Common.Configuration.Hid;
+using Ryujinx.Common.Configuration.Hid.Keyboard;
+using Ryujinx.Input;
 using System;
 using System.IO;
 using System.Runtime.InteropServices;
@@ -25,6 +28,33 @@ internal static class RemasterProfile
     public static void Apply()
     {
         var config = ConfigurationState.Instance;
+        foreach (var input in config.Hid.InputConfig.Value)
+        {
+            if (input is not StandardKeyboardInputConfig keyboard ||
+                keyboard.PlayerIndex != PlayerIndex.Player1 ||
+                keyboard.LeftJoycon is not { ButtonMinus: PhysicalKey.Minus, ButtonL: PhysicalKey.E } ||
+                keyboard.RightJoycon is not
+                {
+                    ButtonA: PhysicalKey.Z, ButtonB: PhysicalKey.X, ButtonX: PhysicalKey.C,
+                    ButtonY: PhysicalKey.V, ButtonPlus: PhysicalKey.Plus, ButtonR: PhysicalKey.U, ButtonZr: PhysicalKey.O,
+                })
+            {
+                continue;
+            }
+
+            var defaults = InputConfigDefaults.CreateDefaultKeyboardConfiguration(
+                keyboard.Id, keyboard.Name, keyboard.ControllerType, keyboard.PlayerIndex);
+            keyboard.LeftJoycon.ButtonMinus = defaults.LeftJoycon.ButtonMinus;
+            keyboard.LeftJoycon.ButtonL = defaults.LeftJoycon.ButtonL;
+            keyboard.RightJoycon.ButtonA = defaults.RightJoycon.ButtonA;
+            keyboard.RightJoycon.ButtonB = defaults.RightJoycon.ButtonB;
+            keyboard.RightJoycon.ButtonX = defaults.RightJoycon.ButtonX;
+            keyboard.RightJoycon.ButtonY = defaults.RightJoycon.ButtonY;
+            keyboard.RightJoycon.ButtonPlus = defaults.RightJoycon.ButtonPlus;
+            keyboard.RightJoycon.ButtonR = defaults.RightJoycon.ButtonR;
+            keyboard.RightJoycon.ButtonZr = defaults.RightJoycon.ButtonZr;
+        }
+
         config.System.EnableDockedMode.Value = false;
         config.System.MemoryManagerMode.Value = MemoryManagerMode.HostMappedUnsafe;
         config.System.UseHypervisor.Value = OperatingSystem.IsMacOS() && RuntimeInformation.ProcessArchitecture == Architecture.Arm64;

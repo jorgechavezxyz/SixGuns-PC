@@ -2,14 +2,13 @@ using Ryujinx.Ava.Systems.Configuration.System;
 using Ryujinx.Ava.Systems.Configuration.UI;
 using Ryujinx.Common.Configuration;
 using Ryujinx.Common.Configuration.Hid;
-using Ryujinx.Common.Configuration.Hid.Keyboard;
 using Ryujinx.Common.Configuration.Multiplayer;
 using Ryujinx.Graphics.Vulkan;
 using Ryujinx.HLE;
+using Ryujinx.Input;
 using System;
 using System.Linq;
 using Key = Ryujinx.Common.Configuration.Hid.Key;
-using PhysicalKey = Ryujinx.Common.Configuration.Hid.PhysicalKey;
 
 namespace Ryujinx.Ava.Systems.Configuration
 {
@@ -286,55 +285,7 @@ namespace Ryujinx.Ava.Systems.Configuration
             Hid.RainbowSpeed.Value = 1f;
             Hid.InputConfig.Value =
             [
-                new StandardKeyboardInputConfig
-                {
-                    Version = InputConfig.CurrentVersion,
-                    Backend = InputBackendType.WindowKeyboard,
-                    Id = "0",
-                    Name = "Keyboard",
-                    PlayerIndex = PlayerIndex.Player1,
-                    ControllerType = ControllerType.ProController,
-                    LeftJoycon = new LeftJoyconCommonConfig<PhysicalKey>
-                    {
-                        DpadUp = PhysicalKey.Up,
-                        DpadDown = PhysicalKey.Down,
-                        DpadLeft = PhysicalKey.Left,
-                        DpadRight = PhysicalKey.Right,
-                        ButtonMinus = PhysicalKey.Minus,
-                        ButtonL = PhysicalKey.E,
-                        ButtonZl = PhysicalKey.Q,
-                        ButtonSl = PhysicalKey.Unbound,
-                        ButtonSr = PhysicalKey.Unbound,
-                    },
-                    LeftJoyconStick = new JoyconConfigKeyboardStick<PhysicalKey>
-                    {
-                        StickUp = PhysicalKey.W,
-                        StickDown = PhysicalKey.S,
-                        StickLeft = PhysicalKey.A,
-                        StickRight = PhysicalKey.D,
-                        StickButton = PhysicalKey.F,
-                    },
-                    RightJoycon = new RightJoyconCommonConfig<PhysicalKey>
-                    {
-                        ButtonA = PhysicalKey.Z,
-                        ButtonB = PhysicalKey.X,
-                        ButtonX = PhysicalKey.C,
-                        ButtonY = PhysicalKey.V,
-                        ButtonPlus = PhysicalKey.Plus,
-                        ButtonR = PhysicalKey.U,
-                        ButtonZr = PhysicalKey.O,
-                        ButtonSl = PhysicalKey.Unbound,
-                        ButtonSr = PhysicalKey.Unbound,
-                    },
-                    RightJoyconStick = new JoyconConfigKeyboardStick<PhysicalKey>
-                    {
-                        StickUp = PhysicalKey.I,
-                        StickDown = PhysicalKey.K,
-                        StickLeft = PhysicalKey.J,
-                        StickRight = PhysicalKey.L,
-                        StickButton = PhysicalKey.H,
-                    },
-                }
+                InputConfigDefaults.CreateDefaultKeyboardConfiguration("0", "Keyboard", ControllerType.ProController, PlayerIndex.Player1),
             ];
             Hid.PlayerInputAssignments.Value =
             [

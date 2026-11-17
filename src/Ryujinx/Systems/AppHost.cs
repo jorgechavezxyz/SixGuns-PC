@@ -38,6 +38,7 @@ using Ryujinx.Graphics.Vulkan;
 using Ryujinx.HLE.FileSystem;
 using Ryujinx.HLE.HOS;
 using Ryujinx.HLE.HOS.Services.Account.Acc;
+using Ryujinx.HLE.HOS.Services.Hid;
 using Ryujinx.Input;
 using Ryujinx.Input.HLE;
 using SkiaSharp;
@@ -46,6 +47,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Numerics;
 using System.Runtime;
 using System.Runtime.InteropServices;
 using System.Threading;
@@ -93,6 +95,8 @@ namespace Ryujinx.Ava.Systems
         private KeyboardHotkeyState _prevHotkeyState;
 
         private long _lastCursorMoveTime;
+        private const float MouseAimRadius = 64f;
+        private Vector2? _mouseAimOrigin;
         private bool _isCursorInRenderer = true;
         private bool _ignoreCursorState = false;
 
@@ -466,6 +470,7 @@ namespace Ryujinx.Ava.Systems
 
             DisplaySleep.Prevent();
 
+            NpadManager.AutoAssignPlayerOneGamepads = true;
             if (ConfigurationState.Instance.System.UseInputGlobalConfig.Value && Program.UseExtraConfig)
             {
                 NpadManager.Initialize(Device, ConfigurationState.InstanceExtra.Hid.InputConfig, ConfigurationState.InstanceExtra.Hid.PlayerInputAssignments, ConfigurationState.Instance.Hid.EnableKeyboard, ConfigurationState.Instance.Hid.EnableMouse);
@@ -1307,7 +1312,40 @@ namespace Ryujinx.Ava.Systems
                 _inputManager.KeyboardDriver.Clear();
             }
 
-            NpadManager.Update(ConfigurationState.Instance.Graphics.AspectRatio.Value.ToFloat());
+            var mouse = _inputManager.MouseDriver as AvaloniaMouseDriver;
+            bool mouseAim = mouse != null && mouse.IsRightButtonPressed && _viewModel.IsActive &&
+                !NpadManager.InputUpdatesBlocked && !_viewModel.ShowLoadProgress &&
+                !ConfigurationState.Instance.Hid.EnableMouse.Value &&
+                (_mouseAimOrigin.HasValue || _isCursorInRenderer);
+            GamepadInput mouseInput = default;
+            if (mouseAim)
+            {
+                Vector2 position = mouse.CurrentPosition;
+                _mouseAimOrigin ??= position;
+                Vector2 stick = (position - _mouseAimOrigin.Value) / MouseAimRadius;
+                if (stick.LengthSquared() > 1f)
+                {
+                    stick = Vector2.Normalize(stick);
+                }
+
+                mouseInput.Buttons = ControllerKeys.Zl;
+                if (mouse.IsButtonPressed(MouseButton.Button1))
+                {
+                    mouseInput.Buttons |= ControllerKeys.Zr;
+                }
+
+                mouseInput.RStick = new JoystickPosition
+                {
+                    Dx = (int)(stick.X * short.MaxValue),
+                    Dy = (int)(-stick.Y * short.MaxValue),
+                };
+            }
+            else
+            {
+                _mouseAimOrigin = null;
+            }
+
+            NpadManager.Update(ConfigurationState.Instance.Graphics.AspectRatio.Value.ToFloat(), mouseInput);
 
             if (_viewModel.IsActive)
             {
@@ -1442,7 +1480,7 @@ namespace Ryujinx.Ava.Systems
             // Touchscreen.
             bool hasTouch = false;
 
-            if (_viewModel.IsActive && !ConfigurationState.Instance.Hid.EnableMouse.Value)
+            if (_viewModel.IsActive && !mouseAim && !ConfigurationState.Instance.Hid.EnableMouse.Value)
             {
                 hasTouch = TouchScreenManager.Update(true, (_inputManager.MouseDriver as AvaloniaMouseDriver).IsButtonPressed(MouseButton.Button1), ConfigurationState.Instance.Graphics.AspectRatio.Value.ToFloat());
             }

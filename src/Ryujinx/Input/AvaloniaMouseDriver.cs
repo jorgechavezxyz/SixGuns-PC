@@ -22,6 +22,7 @@ namespace Ryujinx.Ava.Input
         private DispatcherTimer _scrollStopTimer;
 
         public bool[] PressedButtons { get; }
+        public bool IsRightButtonPressed { get; private set; }
         public Vector2 CurrentPosition { get; private set; }
         public Vector2 Scroll { get; private set; }
 
@@ -95,6 +96,7 @@ namespace Ryujinx.Ava.Input
 
         private void Parent_PointerReleasedEvent(object o, PointerReleasedEventArgs args)
         {
+            IsRightButtonPressed = args.GetCurrentPoint(_widget).Properties.IsRightButtonPressed;
             uint button = (uint)args.InitialPressMouseButton - 1;
 
             if ((uint)PressedButtons.Length > button)
@@ -105,6 +107,7 @@ namespace Ryujinx.Ava.Input
         private void Parent_PointerPressedEvent(object o, PointerPressedEventArgs args)
         {
             PointerPoint currentPoint = args.GetCurrentPoint(_widget);
+            IsRightButtonPressed = currentPoint.Properties.IsRightButtonPressed;
             uint button = (uint)currentPoint.Properties.PointerUpdateKind;
 
             if ((uint)PressedButtons.Length > button)
@@ -120,7 +123,9 @@ namespace Ryujinx.Ava.Input
 
         private void Parent_PointerMovedEvent(object o, PointerEventArgs args)
         {
-            Point position = args.GetPosition(_widget);
+            PointerPoint point = args.GetCurrentPoint(_widget);
+            IsRightButtonPressed = point.Properties.IsRightButtonPressed;
+            Point position = point.Position;
 
             CurrentPosition = new Vector2((float)position.X, (float)position.Y);
         }

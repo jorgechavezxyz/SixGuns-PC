@@ -69,7 +69,7 @@
           <StackPanel x:Name="ReadyPanel" IsVisible="False" Spacing="18">
             <TextBlock Text="READY TO RIDE" FontSize="12" LetterSpacing="2" Foreground="#DEB46C" />
             <TextBlock Text="Welcome to the West." FontSize="32" FontWeight="SemiBold" TextWrapping="Wrap" />
-            <TextBlock Text="Your next adventure is one click away. Connect a controller, or use your keyboard." Classes="muted" />
+            <TextBlock Text="Controllers connect automatically. Use WASD to move, or hold right mouse and drag to aim." Classes="muted" TextWrapping="Wrap" />
             <Button x:Name="PlayButton" Content="Play" Classes="primary" Height="62" FontSize="20" HorizontalAlignment="Stretch" Click="Play" />
             <Grid ColumnDefinitions="*,*">
               <Button Content="Controls" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Margin="0,0,5,0" Click="Controls" />

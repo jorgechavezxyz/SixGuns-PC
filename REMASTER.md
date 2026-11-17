@@ -16,7 +16,13 @@ The first launch guides you through three steps:
 
 The game is installed by the Six Guns NX SD Builder, the same tool that builds a Switch SD card: it checks Gameloft's signature on the APK (every file), the 2.9.9a arm64 engine and both original OBBs, and refuses re-signed APKs, installer repacks and modified files. XAPK/APKS bundles holding the official APK work too. It also adds the Stadium multiplayer map, so desktop and Switch players have identical builds for LAN matches.
 
-Then choose **Play**. Use **Controls** to choose a connected controller or change keyboard bindings. Default keyboard: WASD move; IJKL camera; arrows navigate; Z confirm; X back; Q/O triggers; minus/plus game menu buttons. F11 toggles full screen. Escape leaves full screen first, then offers to stop the game. Returning from the game returns to the launcher.
+Choose **Play**. Controllers supported by SDL connect automatically to Player 1, including when connected during play. Press a controller button or a keyboard key to switch input. Open **Controls** to customize bindings.
+
+- **WASD** moves, **IJKL** turns the camera, and the **arrow keys** navigate menus.
+- **E** interacts or confirms, **Space** rolls or goes back, **R** reloads, and **X** changes weapons.
+- **Q** aims, **Z** fires, **F** toggles cover, **G** throws a grenade, **M** opens the map, and **P** pauses.
+- Hold **right mouse** to aim, then drag to turn the camera. While aiming, **left mouse** fires. With right mouse released, left-click still acts as a touchscreen tap.
+- **F11** toggles full screen. **Escape** leaves full screen first, then offers to stop the game. Returning from the game returns to the launcher.
 
 For LAN play, use the game's Multiplayer menu. Each player needs the same port and map mods. The launcher installs the same port and Stadium map as the Switch SD Builder; your own mods can be placed in the game's mods folder.
 
