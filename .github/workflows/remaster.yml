@@ -24,8 +24,34 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           global-json-file: global.json
+      - name: Read pinned SixGuns-NX commit
+        id: nx
+        shell: bash
+        run: echo "ref=$(head -n1 distribution/sixguns-nx.ref | tr -d '[:space:]')" >> "$GITHUB_OUTPUT"
+      # The game is installed by the Switch port's own SD Builder (command-line build) from the pinned commit,
+      # with the sixguns.nro it carries: desktop and Switch players get identical builds.
+      - uses: actions/checkout@v4
+        with:
+          repository: jorgechavezxyz/SixGuns-NX
+          ref: ${{ steps.nx.outputs.ref }}
+          path: sixguns-nx
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Build the SD Builder
+        shell: bash
+        run: |
+          python -m pip install pyinstaller numpy
+          (cd sixguns-nx && python -m PyInstaller --noconfirm tools/packaging/sd_builder_cli.spec)
+          cp -R sixguns-nx/dist/sixguns-sd-build sd-builder
+          exe=sd-builder/sixguns-sd-build; [ -f "$exe.exe" ] && exe="$exe.exe"
+          "$exe" --self-test | tee sd-builder-selftest.txt
+          grep -q "nro_sha256=$(python -c "import hashlib;print(hashlib.sha256(open('sixguns-nx/tools/packaging/sixguns.nro','rb').read()).hexdigest())")" sd-builder-selftest.txt
       - name: Installer safety tests
-        run: dotnet run --project tests/Remaster.Installer -c Release
+        shell: bash
+        run: |
+          exe="$PWD/sd-builder/sixguns-sd-build"; [ -f "$exe.exe" ] && exe="$exe.exe"
+          SIXGUNS_SD_BUILD="$exe" dotnet run --project tests/Remaster.Installer -c Release
       - name: Build self-contained launcher
         run: dotnet publish src/Ryujinx -c Release -r ${{ matrix.rid }} -p:RuntimeIdentifiers=${{ matrix.rid }} --self-contained true -o desktop-publish
       - name: Package Windows
@@ -58,7 +84,13 @@ jobs:
           cp distribution/macos/Ryujinx.icns LICENSE.txt "$app/Contents/Resources/"
           mv "$app/Contents/MacOS/Ryujinx" "$app/Contents/MacOS/SixGunsRemasterNX"
           chmod +x "$app/Contents/MacOS/SixGunsRemasterNX"
+          chmod +x "$app/Contents/MacOS/sd-builder/sixguns-sd-build"
           find "$app/Contents/MacOS" -name '*.dylib' -exec codesign --force --sign - {} \;
+          # the SD Builder's Python runtime and extension modules are Mach-O too
+          find "$app/Contents/MacOS/sd-builder" -type f -print0 | while IFS= read -r -d '' f; do
+            if file -b "$f" | grep -q Mach-O; then codesign --force --sign - "$f"; fi
+          done
+          "$app/Contents/MacOS/sd-builder/sixguns-sd-build" --self-test
           codesign --force --sign - --entitlements distribution/macos/entitlements.xml "$app"
           codesign --verify --deep --strict "$app"
           mkdir -p "$RUNNER_TEMP/remaster-first-run"

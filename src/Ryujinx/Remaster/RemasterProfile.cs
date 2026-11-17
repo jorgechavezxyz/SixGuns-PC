@@ -15,6 +15,9 @@ internal static class RemasterProfile
     public static string BundledNro => OperatingSystem.IsMacOS() && AppContext.BaseDirectory.TrimEnd(Path.DirectorySeparatorChar).EndsWith("MacOS", StringComparison.Ordinal)
         ? Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "Resources", "sixguns.nro"))
         : Path.Combine(AppContext.BaseDirectory, "sixguns.nro");
+    /// <summary>The Six Guns NX SD Builder (command-line build) that installs the game; see GameInstaller.</summary>
+    public static string SdBuilder => Path.Combine(AppContext.BaseDirectory, "sd-builder",
+        OperatingSystem.IsWindows() ? "sixguns-sd-build.exe" : "sixguns-sd-build");
 
     public static void Apply()
     {

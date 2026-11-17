@@ -20,7 +20,11 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Content Include="Assets/Remaster/sixguns.nro" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" TargetPath="sixguns.nro" />
+    <!-- The Six Guns NX SD Builder (command-line build, made from the commit pinned in distribution/sixguns-nx.ref
+         by build-remaster.ps1 / CI into sd-builder/). The launcher installs the game with it and runs the
+         sixguns.nro it carries, so desktop and Switch builds are identical. -->
+    <Content Include="../../sd-builder/**" LinkBase="sd-builder" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="../../sd-builder/_internal/sixguns.nro" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" TargetPath="sixguns.nro" />
     <Content Include="../../LICENSE-REMASTER.txt" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" TargetPath="LICENSE-REMASTER.txt" />
   </ItemGroup>
   <Target Name="RemoveNativePackagePdbs" AfterTargets="ResolvePackageAssets">
@@ -197,4 +201,8 @@
   <ItemGroup>
     <AdditionalFiles Include="..\..\assets\Locales\*.json" />
   </ItemGroup>
+  <Target Name="RequireSdBuilder" BeforeTargets="BeforeBuild" Condition="'$(DesignTimeBuild)' != 'true'">
+    <Error Condition="!Exists('$(MSBuildThisFileDirectory)../../sd-builder/_internal/sixguns.nro')"
+           Text="sd-builder/ is missing: build the Six Guns NX SD Builder first (build-remaster.ps1 does it; see REMASTER.md)." />
+  </Target>
 </Project>

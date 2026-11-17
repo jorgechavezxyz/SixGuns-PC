@@ -15,6 +15,11 @@ publish="$workspace/dist/macos-$arch-publish"
 app="$workspace/dist/macos-$arch/Six Guns Remaster-NX.app"
 if [[ -e "$publish" || -e "$app" ]]; then echo 'Move the previous publish/app folders aside first.'; exit 1; fi
 cd "$project_root"
+# sd-builder/: the Six Guns NX SD Builder (command-line) from the commit pinned in distribution/sixguns-nx.ref,
+# built on this Mac (PyInstaller output is per-platform):
+#   (cd <SixGuns-NX checkout at that commit> && python3 -m PyInstaller --noconfirm tools/packaging/sd_builder_cli.spec)
+#   cp -R <checkout>/dist/sixguns-sd-build sd-builder
+[ -x sd-builder/sixguns-sd-build ] || { echo 'sd-builder/ missing: build the SD Builder first (see above)'; exit 1; }
 "$dotnet_bin" publish src/Ryujinx -c Release -r "osx-$arch" "-p:RuntimeIdentifiers=osx-$arch" -m:1 --self-contained true --disable-build-servers -o "$publish"
 mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources"
 cp -R "$publish/." "$app/Contents/MacOS/"
@@ -26,7 +31,11 @@ cp LICENSE.txt "$app/Contents/Resources/"
 cp REMASTER.md "$app/Contents/Resources/START HERE.md"
 mv "$app/Contents/MacOS/Ryujinx" "$app/Contents/MacOS/SixGunsRemasterNX"
 chmod +x "$app/Contents/MacOS/SixGunsRemasterNX"
+chmod +x "$app/Contents/MacOS/sd-builder/sixguns-sd-build"
 find "$app/Contents/MacOS" -name '*.dylib' -exec codesign --force --sign - {} \;
+find "$app/Contents/MacOS/sd-builder" -type f -print0 | while IFS= read -r -d '' f; do
+  if file -b "$f" | grep -q Mach-O; then codesign --force --sign - "$f"; fi
+done
 codesign --force --sign - --entitlements distribution/macos/entitlements.xml "$app"
 codesign --verify --deep --strict "$app"
 ditto -c -k --keepParent "$app" "$workspace/dist/SixGuns-Remaster-NX-macos-$arch.zip"

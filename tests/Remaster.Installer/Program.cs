@@ -1,8 +1,8 @@
 using Ryujinx.Ava.Remaster;
-using System.Security.Cryptography;
 
-// Run with optional official APK, OBB folder, NRO, and disposable destination arguments.
-// No keys, firmware or game data are bundled into the test project.
+// SIXGUNS_SD_BUILD: path of the bundled SD Builder (sixguns-sd-build). With it, the rejection test runs the real
+// file checks; without it, a missing installer must still refuse cleanly. Optional arguments for a full install:
+// official APK, OBB folder, disposable destination. No keys, firmware or game data are bundled into the test project.
 string scratch = Path.Combine(Path.GetTempPath(), "remaster-installer-tests-" + Guid.NewGuid().ToString("N"));
 Directory.CreateDirectory(scratch);
 int passed = 0;
@@ -21,13 +21,9 @@ void Refuses(Action action, string name)
 }
 try
 {
+    string builder = Environment.GetEnvironmentVariable("SIXGUNS_SD_BUILD") ?? Path.Combine(scratch, "missing-builder");
     string sample = Path.Combine(scratch, "sample");
     File.WriteAllText(sample, "untrusted game data");
-    string digest = Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(sample)));
-    GameInstaller.Verify(sample, digest, "sample", default);
-    Check(true, "hash verification accepts exact bytes");
-    Refuses(() => GameInstaller.Verify(sample, GameInstaller.ApkHash, "APK", default), "modified/repacked APK rejected");
-    Refuses(() => GameInstaller.Verify(sample, digest, "sample", new CancellationToken(true)), "cancelled verification stops");
     Refuses(() => GameInstaller.ValidateKeys(sample), "non-key input rejected without exposing content");
     string keyFixture = Path.Combine(scratch, "fixture.keys");
     File.WriteAllText(keyFixture, "header_key = 00\n");
@@ -38,21 +34,28 @@ try
     File.WriteAllText(save, "preserve me");
     File.WriteAllText(Path.Combine(root, "prefs.txt"), "preferences");
     File.WriteAllText(Path.Combine(root, "device_id.txt"), "test identity");
-    Refuses(() => GameInstaller.Install(sample, scratch, sample, root, _ => { }, default), "unverified install rejected");
+    Refuses(() => GameInstaller.Install(sample, scratch, builder, root, _ => { }, default),
+        File.Exists(builder) ? "SD Builder rejects an unofficial APK" : "missing installer refused");
     Check(File.ReadAllText(save) == "preserve me" && File.ReadAllText(Path.Combine(root, "device_id.txt")) == "test identity", "rejected install preserves save and identity");
     Check(!Directory.EnumerateDirectories(scratch, ".setup-*").Any(), "staging cleaned after failure");
     File.WriteAllText(Path.Combine(root, "installation.complete"), "x");
     Check(!GameInstaller.IsInstalled(root), "completion marker alone cannot enable Play");
-    if (args.Length == 4)
+    if (args.Length == 3)
     {
-        GameInstaller.Install(args[0], args[1], args[2], args[3], Console.WriteLine, default);
-        Check(GameInstaller.IsInstalled(args[3]), "official fresh install complete");
-        Directory.CreateDirectory(Path.Combine(args[3], "save"));
-        string sentinel = Path.Combine(args[3], "save", "installer-test-sentinel");
+        GameInstaller.Install(args[0], args[1], builder, args[2], Console.WriteLine, default);
+        Check(GameInstaller.IsInstalled(args[2]), "official fresh install complete");
+        Check(File.Exists(Path.Combine(args[2], "mods", "30_stadium.zip")), "Stadium map installed like on Switch");
+        Check(File.Exists(Path.Combine(args[2], "emulator_mode")), "emulator marker added by the launcher");
+        Directory.CreateDirectory(Path.Combine(args[2], "save"));
+        string sentinel = Path.Combine(args[2], "save", "installer-test-sentinel");
         File.WriteAllText(sentinel, "preserve on reinstall");
-        GameInstaller.Install(args[0], args[1], args[2], args[3], Console.WriteLine, default);
+        string ownMod = Path.Combine(args[2], "mods", "50_players_own.zip");
+        File.WriteAllText(ownMod, "player mod");
+        GameInstaller.Install(args[0], args[1], builder, args[2], Console.WriteLine, default);
         Check(File.ReadAllText(sentinel) == "preserve on reinstall", "official reinstall preserves save");
+        Check(File.Exists(ownMod), "official reinstall keeps the player's own mods");
         File.Delete(sentinel);
+        File.Delete(ownMod);
     }
     Console.WriteLine($"{passed} checks passed.");
 }

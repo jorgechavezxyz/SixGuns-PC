@@ -194,7 +194,7 @@ public partial class RemasterLauncherView : UserControl
         await Run(async () =>
         {
             var token = _cancellation.Token;
-            await Task.Run(() => GameInstaller.Install(_apk, _obb, RemasterProfile.BundledNro, RemasterProfile.GameRoot,
+            await Task.Run(() => GameInstaller.Install(_apk, _obb, RemasterProfile.SdBuilder, RemasterProfile.GameRoot,
                 message => Dispatcher.UIThread.Post(() => Status.Text = message), token));
             Status.Text = "You're all set. Your saves will be kept automatically.";
             Refresh();

@@ -16,8 +16,29 @@ foreach ($path in @($env:TEMP, $env:NUGET_PACKAGES, $env:DOTNET_CLI_HOME, (Join-
 }
 $sdk = Join-Path $env:DOTNET_ROOT 'dotnet.exe'
 if (!(Test-Path $sdk)) { throw 'Install the .NET 10 SDK in ../toolchain/dotnet first (see REMASTER.md).' }
-$nro = Join-Path $projectRoot 'src\Ryujinx\Assets\Remaster\sixguns.nro'
-if (!(Test-Path $nro)) { throw 'Missing bundled sixguns.nro. See REMASTER.md.' }
+# The game is installed by the Six Guns NX SD Builder (command-line build), the same tool and sixguns.nro a Switch
+# uses. Built from the SixGuns-NX checkout next to this workspace (D:\publish), which must be at the commit pinned in
+# distribution/sixguns-nx.ref (CI builds exactly that commit).
+$sixgunsNx = if ($env:SIXGUNS_NX_SOURCE) { $env:SIXGUNS_NX_SOURCE } else { Join-Path (Split-Path $workspace -Parent) 'publish' }
+$pinned = (Get-Content (Join-Path $projectRoot 'distribution\sixguns-nx.ref') -TotalCount 1).Trim()
+$actual = (& git -c safe.directory=* -C $sixgunsNx rev-parse HEAD).Trim()
+if ($actual -ne $pinned) { throw "SixGuns-NX at $sixgunsNx is at $actual, the launcher pins $pinned (distribution/sixguns-nx.ref)." }
+$dirty = & git -c safe.directory=* -C $sixgunsNx status --porcelain -- tools port/source
+if ($dirty) { throw "SixGuns-NX at $sixgunsNx has uncommitted changes in tools/ or port/source; commit them and update distribution/sixguns-nx.ref." }
+$python = Join-Path $workspace 'toolchain\builder-python\Scripts\python.exe'
+if (!(Test-Path $python)) { throw 'Python with PyInstaller and numpy is missing in ../toolchain/builder-python.' }
+$builderWork = Join-Path $workspace 'cache\sd-builder-work'
+$builderDist = Join-Path $workspace 'cache\sd-builder-dist'
+Push-Location $sixgunsNx
+try {
+    & $python -m PyInstaller --noconfirm --workpath $builderWork --distpath $builderDist tools/packaging/sd_builder_cli.spec
+    if ($LASTEXITCODE -ne 0) { throw 'SD Builder packaging failed.' }
+} finally { Pop-Location }
+$builder = Join-Path $projectRoot 'sd-builder'
+if (Test-Path $builder) { Remove-Item -Recurse -Force $builder }
+Copy-Item -Recurse (Join-Path $builderDist 'sixguns-sd-build') $builder
+& (Join-Path $builder 'sixguns-sd-build.exe') --self-test
+if ($LASTEXITCODE -ne 0) { throw 'SD Builder self-test failed.' }
 Push-Location $projectRoot
 try {
     if ($Package) {
