@@ -31,17 +31,18 @@ cp LICENSE.txt "$app/Contents/Resources/"
 cp REMASTER.md "$app/Contents/Resources/START HERE.md"
 mv "$app/Contents/MacOS/Ryujinx" "$app/Contents/MacOS/SixGunsRemasterNX"
 chmod +x "$app/Contents/MacOS/SixGunsRemasterNX"
-# The SD Builder: copied again with ditto so its Python.framework keeps its symlinked bundle layout (the
+# The SD Builder goes in Contents/Resources (codesign rejects data files in subfolders of Contents/MacOS),
+# copied with ditto so its Python.framework keeps its symlinked bundle layout (the
 # .NET publish copy flattens it, and a flattened framework cannot be signed), then signed: the framework
 # as a bundle, every other Mach-O file on its own, before the app itself.
 rm -rf "$app/Contents/MacOS/sd-builder"
-ditto sd-builder "$app/Contents/MacOS/sd-builder"
-chmod +x "$app/Contents/MacOS/sd-builder/sixguns-sd-build"
+ditto sd-builder "$app/Contents/Resources/sd-builder"
+chmod +x "$app/Contents/Resources/sd-builder/sixguns-sd-build"
 find "$app/Contents/MacOS" -name '*.dylib' -not -path '*/sd-builder/*' -exec codesign --force --sign - {} \;
-find "$app/Contents/MacOS/sd-builder" -name '*.framework' -type d -prune -print0 | while IFS= read -r -d '' fw; do
+find "$app/Contents/Resources/sd-builder" -name '*.framework' -type d -prune -print0 | while IFS= read -r -d '' fw; do
   codesign --force --sign - "$fw"
 done
-find "$app/Contents/MacOS/sd-builder" -path '*.framework' -prune -o -type f -print0 | while IFS= read -r -d '' f; do
+find "$app/Contents/Resources/sd-builder" -path '*.framework' -prune -o -type f -print0 | while IFS= read -r -d '' f; do
   if file -b "$f" | grep -q Mach-O; then codesign --force --sign - "$f"; fi
 done
 codesign --force --sign - --entitlements distribution/macos/entitlements.xml "$app"
