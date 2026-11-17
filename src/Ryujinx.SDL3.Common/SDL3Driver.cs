@@ -58,7 +58,7 @@ namespace Ryujinx.SDL3.Common
                     return;
                 }
 
-                SDL_SetHint(SDL_HINT_APP_NAME, "Ryujinx");
+                SDL_SetHint(SDL_HINT_APP_NAME, "Six Guns Remaster-NX");
                 SDL_SetHint(SDL_HINT_JOYSTICK_ENHANCED_REPORTS , "1");
                 SDL_SetHint(SDL_HINT_JOYSTICK_ALLOW_BACKGROUND_EVENTS, "1");
                 SDL_SetHint(SDL_HINT_JOYSTICK_HIDAPI_SWITCH_HOME_LED, "0");

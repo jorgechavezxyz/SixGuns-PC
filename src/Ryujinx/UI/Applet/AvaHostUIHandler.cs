@@ -182,7 +182,7 @@ namespace Ryujinx.Ava.UI.Applet
                     SoftwareKeyboardUIArgs args = new()
                     {
                         KeyboardMode = KeyboardMode.Default,
-                        InitialText = "Ryujinx",
+                        InitialText = "Six Guns",
                         StringLengthMin = 1,
                         StringLengthMax = 25
                     };

@@ -55,10 +55,10 @@ namespace Ryujinx.Ava
             {
                 if (!OperatingSystem.IsWindowsVersionAtLeast(10, 0, 19041))
                 {
-                    Logger.Error?.PrintMsg(LogClass.Application, "Ryujinx is not intended to be run on an outdated version of Windows. Exiting...");
+                    Logger.Error?.PrintMsg(LogClass.Application, Remaster.RemasterBranding.AppName + " needs a newer version of Windows. Exiting...");
                     _ = Win32NativeInterop.MessageBoxA(nint.Zero,
                         "You are running an outdated version of Windows.\n\nRyujinx supports Windows 10 version 20H1 and newer.\n",
-                        $"Ryujinx {Version}", MbIconwarning);
+                        $"{Remaster.RemasterBranding.AppName} {Version}", MbIconwarning);
                     return 0;
                 }
 
@@ -68,9 +68,9 @@ namespace Ryujinx.Ava
                 // ...but this reads like it checks if the current is in/has the Windows admin role? lol
                 if (new WindowsPrincipal(WindowsIdentity.GetCurrent()).IsInRole(WindowsBuiltInRole.Administrator))
                 {
-                    Logger.Error?.PrintMsg(LogClass.Application, "Ryujinx is not intended to be run as administrator. Exiting...");
-                    _ = Win32NativeInterop.MessageBoxA(nint.Zero, "Ryujinx is not intended to be run as administrator.",
-                        $"Ryujinx {Version}", MbIconwarning);
+                    Logger.Error?.PrintMsg(LogClass.Application, Remaster.RemasterBranding.AppName + " should not be run as administrator. Exiting...");
+                    _ = Win32NativeInterop.MessageBoxA(nint.Zero, Remaster.RemasterBranding.AppName + " should not be run as administrator.",
+                        $"{Remaster.RemasterBranding.AppName} {Version}", MbIconwarning);
                     return 0;
                 }
             }
@@ -85,9 +85,9 @@ namespace Ryujinx.Ava
                 {
                     if (root)
                     {
-                        Logger.Error?.PrintMsg(LogClass.Application, "Ryujinx is not intended to be run as administrator. Exiting...");
-                        macOSNativeInterop.SimpleMessageBox($"Ryujinx {Version}",
-                            "Ryujinx is not intended to be run as administrator.", "Ok");
+                        Logger.Error?.PrintMsg(LogClass.Application, Remaster.RemasterBranding.AppName + " should not be run as administrator. Exiting...");
+                        macOSNativeInterop.SimpleMessageBox($"{Remaster.RemasterBranding.AppName} {Version}",
+                            Remaster.RemasterBranding.AppName + " should not be run as administrator.", "Ok");
                         return 0;
                     }
                     
@@ -98,8 +98,8 @@ namespace Ryujinx.Ava
                 {
                     if (root)
                     {
-                        Logger.Error?.PrintMsg(LogClass.Application, "Ryujinx is not intended to be run as administrator. Exiting...");
-                        LinuxSDLInterop.SimpleMessageBox($"Ryujinx {Version}", "Ryujinx is not intended to be run as administrator.");
+                        Logger.Error?.PrintMsg(LogClass.Application, Remaster.RemasterBranding.AppName + " should not be run as administrator. Exiting...");
+                        LinuxSDLInterop.SimpleMessageBox($"{Remaster.RemasterBranding.AppName} {Version}", Remaster.RemasterBranding.AppName + " should not be run as administrator.");
                         return 0;
                     }
                     

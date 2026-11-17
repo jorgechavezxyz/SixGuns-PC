@@ -29,6 +29,7 @@
         <Grid Margin="42" RowDefinitions="Auto,*,Auto">
           <TextBlock Text="THE FRONTIER AWAITS" FontSize="12" LetterSpacing="3" Foreground="#E8C894" />
           <StackPanel Grid.Row="1" VerticalAlignment="Top" Margin="0,58,0,0" Spacing="12">
+            <Canvas Width="64" Height="64" HorizontalAlignment="Left" Margin="0,0,0,6"><Ellipse Width="64" Height="64" Fill="#DEB46C" /><Ellipse Width="56" Height="56" Canvas.Left="4" Canvas.Top="4" Stroke="#9C7A3E" StrokeThickness="1.5" /><Ellipse Width="12" Height="12" Canvas.Left="26.0" Canvas.Top="7.0" Fill="#1E1A14" /><Ellipse Width="12" Height="12" Canvas.Left="9.5" Canvas.Top="16.5" Fill="#1E1A14" /><Ellipse Width="12" Height="12" Canvas.Left="9.5" Canvas.Top="35.5" Fill="#1E1A14" /><Ellipse Width="12" Height="12" Canvas.Left="26.0" Canvas.Top="45.0" Fill="#1E1A14" /><Ellipse Width="12" Height="12" Canvas.Left="42.5" Canvas.Top="35.5" Fill="#1E1A14" /><Ellipse Width="12" Height="12" Canvas.Left="42.5" Canvas.Top="16.5" Fill="#1E1A14" /><Ellipse Width="10" Height="10" Canvas.Left="27" Canvas.Top="27" Fill="#9C7A3E" /></Canvas>
             <TextBlock Text="SIX&#10;GUNS" FontSize="68" FontWeight="Black" LineHeight="66" LetterSpacing="2" />
             <TextBlock Text="REMASTER — NX" FontSize="15" LetterSpacing="4" Foreground="#E8C894" />
             <Border Height="2" Width="44" Background="#E8C894" HorizontalAlignment="Left" Margin="0,12" />
@@ -82,7 +83,7 @@
         </StackPanel>
         <StackPanel Grid.Row="2" Spacing="4">
           <Button x:Name="RepairButton" Content="Set up files again" Classes="link" Click="RestartSetup" IsVisible="False" />
-          <TextBlock Text="Built on Ryubing / Ryujinx · MIT license" FontSize="11" Foreground="#8E9996" />
+          <TextBlock Text="Free and open source · licenses in LICENSE.txt" FontSize="11" Foreground="#8E9996" />
           <TextBlock Text="Unofficial fan port. Six Guns belongs to Gameloft.&#10;Game files, Switch keys and firmware are not included." FontSize="11" Foreground="#8E9996" TextWrapping="Wrap" />
         </StackPanel>
       </Grid>

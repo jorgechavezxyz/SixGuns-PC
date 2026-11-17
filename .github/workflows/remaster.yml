@@ -56,12 +56,13 @@ jobs:
           mv "$app/Contents/MacOS/THIRDPARTY.md" "$app/Contents/MacOS/LICENSE.txt" "$app/Contents/MacOS/LICENSE-REMASTER.txt" "$app/Contents/Resources/"
           cp distribution/macos/Remaster-Info.plist "$app/Contents/Info.plist"
           cp distribution/macos/Ryujinx.icns LICENSE.txt "$app/Contents/Resources/"
-          chmod +x "$app/Contents/MacOS/Ryujinx"
+          mv "$app/Contents/MacOS/Ryujinx" "$app/Contents/MacOS/SixGunsRemasterNX"
+          chmod +x "$app/Contents/MacOS/SixGunsRemasterNX"
           find "$app/Contents/MacOS" -name '*.dylib' -exec codesign --force --sign - {} \;
           codesign --force --sign - --entitlements distribution/macos/entitlements.xml "$app"
           codesign --verify --deep --strict "$app"
           mkdir -p "$RUNNER_TEMP/remaster-first-run"
-          "$app/Contents/MacOS/Ryujinx" --root-data-dir "$RUNNER_TEMP/remaster-first-run" > "$RUNNER_TEMP/launcher-smoke.log" 2>&1 &
+          "$app/Contents/MacOS/SixGunsRemasterNX" --root-data-dir "$RUNNER_TEMP/remaster-first-run" > "$RUNNER_TEMP/launcher-smoke.log" 2>&1 &
           launcher_pid=$!
           sleep 20
           if ! kill -0 "$launcher_pid" 2>/dev/null; then cat "$RUNNER_TEMP/launcher-smoke.log"; exit 1; fi

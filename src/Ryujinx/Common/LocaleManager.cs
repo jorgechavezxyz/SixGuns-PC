@@ -219,7 +219,9 @@ namespace Ryujinx.Ava.Common.Locale
                             $"Locale key '{locale.ID}' has no valid translations for desired language {languageCode}! {DefaultLanguageCode} is an empty string or null");
                     }
 
-                    localeStrings[localeKey] = str;
+                    // Six Guns Remaster-NX: the launcher's own name in every language instead of the emulator's
+                    // (the emulator is credited in LICENSE.txt / THIRDPARTY.md).
+                    localeStrings[localeKey] = Remaster.RemasterBranding.Rebrand(str);
                 }
             }
 

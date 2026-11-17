@@ -49,16 +49,16 @@
                             <TextBlock
                                 FontSize="28"
                                 FontWeight="Bold"
-                                Text="Ryujinx"
+                                Text="Six Guns"
                                 TextAlignment="Start"
-                                Width="110"
+                                Width="170"
                                 HorizontalAlignment="Center"
                                 VerticalAlignment="Center" />
                             <TextBlock
                                 FontSize="11"
-                                Text="(REE-YOU-JINX)"
+                                Text="REMASTER-NX"
                                 TextAlignment="Start"
-                                Width="110"
+                                Width="170"
                                 HorizontalAlignment="Center"
                                 VerticalAlignment="Center" />
                         </WrapPanel>

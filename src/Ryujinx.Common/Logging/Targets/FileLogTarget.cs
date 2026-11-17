@@ -69,7 +69,7 @@ namespace Ryujinx.Common.Logging.Targets
             }
 
             string version = ReleaseInformation.Version;
-            string appName = ReleaseInformation.IsCanaryBuild ? "Ryujinx_Canary" : "Ryujinx";
+            string appName = ReleaseInformation.IsCanaryBuild ? "SixGunsRemasterNX_Canary" : "SixGunsRemasterNX";
 
             // Get path for the current time
             path = Path.Combine(logDir.FullName, $"{appName}_{version}_{DateTime.Now:yyyy-MM-dd_HH-mm-ss}.log");
