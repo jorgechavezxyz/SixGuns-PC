@@ -21,6 +21,7 @@ public partial class RemasterLauncherView : UserControl
     private string _apk;
     private string _obb;
     private CancellationTokenSource _cancellation;
+    private RemasterUpdater.Update _update;
 
     public RemasterLauncherView() => InitializeComponent();
 
@@ -35,7 +36,71 @@ public partial class RemasterLauncherView : UserControl
                 Status.Text = "Please finish setup or cancel the installation before closing.";
             }
         };
+        RemasterUpdater.Log = message => Ryujinx.Common.Logging.Logger.Warning?.Print(Ryujinx.Common.Logging.LogClass.Application, message);
+        RemasterUpdater.CleanupAfterUpdate();
+        var (version, _) = RemasterUpdater.Current;
+        VersionLabel.Text = $"Version {version.ToString(3)}";
         Refresh();
+        if (_step == 3 && GameInstaller.NeedsRebuild(RemasterProfile.GameRoot, RemasterProfile.SdBuilder))
+            _ = RebuildGame();
+        _ = CheckForUpdates(manual: false);
+    }
+
+    /// <summary>After a launcher update: rebuild the game with the new port from the player's kept game files.</summary>
+    private async Task RebuildGame()
+    {
+        await Run(async () =>
+        {
+            var token = _cancellation.Token;
+            Status.Text = "Updating your game to the new version…";
+            await Task.Run(() => GameInstaller.Rebuild(RemasterProfile.GameRoot, RemasterProfile.SdBuilder,
+                message => Dispatcher.UIThread.Post(() => Status.Text = message), token));
+            Status.Text = "Your game is up to date. Your saves were kept.";
+            Refresh();
+        }, true);
+    }
+
+    private async Task CheckForUpdates(bool manual)
+    {
+        string reason = RemasterUpdater.CannotUpdateReason();
+        if (reason != null)
+        {
+            if (manual) Status.Text = reason;
+            return;
+        }
+        try
+        {
+            if (manual) Status.Text = "Checking for updates…";
+            _update = await RemasterUpdater.CheckAsync(CancellationToken.None);
+            UpdatePanel.IsVisible = _update != null;
+            if (_update != null)
+                UpdateLabel.Text = $"Version {_update.Version.ToString(3)} is available. Your game files and saves are kept.";
+            else if (manual)
+                Status.Text = "You have the latest version.";
+        }
+        catch (Exception ex)
+        {
+            Ryujinx.Common.Logging.Logger.Warning?.Print(Ryujinx.Common.Logging.LogClass.Application, $"Update check failed: {ex.Message}");
+            if (manual) Status.Text = "Couldn't check for updates. Check your internet connection.";
+        }
+    }
+
+    private async void CheckForUpdatesClicked(object sender, RoutedEventArgs e) => await CheckForUpdates(manual: true);
+
+    private async void InstallUpdate(object sender, RoutedEventArgs e)
+    {
+        if (_update == null) return;
+        bool started = false;
+        await Run(async () =>
+        {
+            var update = _update;
+            await RemasterUpdater.DownloadAndInstallAsync(update,
+                message => Dispatcher.UIThread.Post(() => Status.Text = message), _cancellation.Token);
+            started = true;
+            Status.Text = "Restarting with the new version…";
+        }, true);
+        // The new version is running; it rebuilds the game from the kept files on its first start.
+        if (started) _window.Close();
     }
 
     private bool HaveKeys()
@@ -60,6 +125,7 @@ public partial class RemasterLauncherView : UserControl
     {
         SetupPanel.IsVisible = _step < 3;
         ReadyPanel.IsVisible = RepairButton.IsVisible = _step == 3;
+        UpdatePanel.IsVisible = _update != null && _step == 3;
         KeysPanel.IsVisible = _step == 0;
         FirmwarePanel.IsVisible = _step == 1;
         FilesPanel.IsVisible = _step == 2;
@@ -101,8 +167,12 @@ public partial class RemasterLauncherView : UserControl
         Status.Text = "Preparing…";
         _cancellation = new CancellationTokenSource();
         try { await operation(); }
-        catch (OperationCanceledException) { Status.Text = "Installation cancelled. Your existing game and saves are unchanged."; }
-        catch (Exception ex) { Status.Text = "Setup couldn't finish. " + ex.Message; }
+        catch (OperationCanceledException) { Status.Text = "Cancelled. Your existing game and saves are unchanged."; }
+        catch (Exception ex)
+        {
+            Ryujinx.Common.Logging.Logger.Error?.Print(Ryujinx.Common.Logging.LogClass.Application, ex.ToString());
+            Status.Text = "That couldn't finish. " + ex.Message;
+        }
         finally
         {
             _cancellation.Dispose();

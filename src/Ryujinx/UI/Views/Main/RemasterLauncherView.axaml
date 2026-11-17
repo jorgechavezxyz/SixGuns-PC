@@ -76,13 +76,23 @@
               <Button Content="Quit" Grid.Column="1" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Margin="5,0,0,0" Click="Quit" />
             </Grid>
             <TextBlock Text="F11: full screen · Esc: return from the game" Classes="muted" FontSize="12" />
+            <Border x:Name="UpdatePanel" IsVisible="False" Background="#1C2326" BorderBrush="#9C7A3E" BorderThickness="1" CornerRadius="7" Padding="14,12">
+              <Grid ColumnDefinitions="*,Auto">
+                <TextBlock x:Name="UpdateLabel" VerticalAlignment="Center" TextWrapping="Wrap" FontSize="13" />
+                <Button x:Name="UpdateButton" Grid.Column="1" Content="Update" Classes="primary" Padding="18,8" Margin="12,0,0,0" Click="InstallUpdate" />
+              </Grid>
+            </Border>
           </StackPanel>
           <ProgressBar x:Name="Progress" IsVisible="False" IsIndeterminate="True" Height="4" Foreground="#DEB46C" />
           <TextBlock x:Name="Status" TextWrapping="Wrap" FontSize="13" Foreground="#C6CFC7" />
           <Button x:Name="CancelButton" Content="Cancel installation" Classes="link" Click="Cancel" IsVisible="False" />
         </StackPanel>
         <StackPanel Grid.Row="2" Spacing="4">
-          <Button x:Name="RepairButton" Content="Set up files again" Classes="link" Click="RestartSetup" IsVisible="False" />
+          <StackPanel Orientation="Horizontal" Spacing="18">
+            <Button x:Name="RepairButton" Content="Set up files again" Classes="link" Click="RestartSetup" IsVisible="False" />
+            <Button x:Name="CheckUpdatesButton" Content="Check for updates" Classes="link" Click="CheckForUpdatesClicked" />
+          </StackPanel>
+          <TextBlock x:Name="VersionLabel" FontSize="11" Foreground="#8E9996" />
           <TextBlock Text="Free and open source · licenses in LICENSE.txt" FontSize="11" Foreground="#8E9996" />
           <TextBlock Text="Unofficial fan port. Six Guns belongs to Gameloft.&#10;Game files, Switch keys and firmware are not included." FontSize="11" Foreground="#8E9996" TextWrapping="Wrap" />
         </StackPanel>

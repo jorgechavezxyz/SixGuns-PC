@@ -44,6 +44,7 @@ jobs:
           python -m pip install pyinstaller numpy
           (cd sixguns-nx && python -m PyInstaller --noconfirm tools/packaging/sd_builder_cli.spec)
           cp -R sixguns-nx/dist/sixguns-sd-build sd-builder
+          cp distribution/sixguns-nx.ref sd-builder/   # tells an installed game which builder made it (rebuild after updates)
           exe=sd-builder/sixguns-sd-build; [ -f "$exe.exe" ] && exe="$exe.exe"
           "$exe" --self-test | tee sd-builder-selftest.txt
           grep -q "nro_sha256=$(python -c "import hashlib;print(hashlib.sha256(open('sixguns-nx/tools/packaging/sixguns.nro','rb').read()).hexdigest())")" sd-builder-selftest.txt
@@ -61,6 +62,17 @@ jobs:
           Rename-Item desktop-publish/Ryujinx.exe 'Six Guns Remaster-NX.exe'
           Copy-Item REMASTER.md 'desktop-publish/START HERE.md'
           Compress-Archive desktop-publish/* SixGuns-Remaster-NX-${{ matrix.rid }}.zip
+      - name: Update manifest (attach update.json to a release to offer it as an update)
+        if: runner.os == 'Windows'
+        shell: bash
+        run: |
+          python -c "import json,re; v=re.search(r'<Version>([^<]+)</Version>', open('src/Ryujinx/Ryujinx.csproj', encoding='utf-8').read()).group(1); json.dump({'version': v, 'commit': '${{ github.sha }}'}, open('update.json', 'w'))"
+          cat update.json
+      - uses: actions/upload-artifact@v4
+        if: runner.os == 'Windows'
+        with:
+          name: update-manifest
+          path: update.json
       - name: Windows first-run smoke test
         if: runner.os == 'Windows'
         shell: pwsh

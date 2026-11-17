@@ -27,6 +27,30 @@ public static class GameInstaller
     public const string PatchObb = "patch.29523.com.gameloft.android.ANMP.GloftSXHM.obb";
     private const string StadiumMod = "mods/30_stadium.zip";
 
+    /// <summary>Which SD Builder (SixGuns-NX commit, distribution/sixguns-nx.ref, copied next to the builder) made
+    /// an installation. A launcher update with a newer builder rebuilds the game from the player's kept files.</summary>
+    public static string BuildStamp(string builder)
+    {
+        string reference = Path.Combine(Path.GetDirectoryName(builder)!, "sixguns-nx.ref");
+        return File.Exists(reference) ? "sixguns-nx " + File.ReadAllText(reference).Trim() : "sixguns-sd-build";
+    }
+
+    /// <summary>Installed, but by an older SD Builder than the one this launcher carries.</summary>
+    public static bool NeedsRebuild(string root, string builder) =>
+        IsInstalled(root) && File.Exists(builder) &&
+        File.ReadAllText(Path.Combine(root, "installation.complete")).Trim() != BuildStamp(builder);
+
+    /// <summary>Rebuilds the game from the official files kept in the game folder (base.apk, obb/): the player does
+    /// not have to choose them again after an update. Saves and the player's own mods stay.</summary>
+    public static void Rebuild(string root, string builder, Action<string> report, CancellationToken token)
+    {
+        string apk = Path.Combine(root, "base.apk"), obb = Path.Combine(root, "obb");
+        if (!File.Exists(apk) || !Directory.Exists(obb))
+            throw new FileNotFoundException("Your game files are missing from the game folder. Choose \"Set up files again\".");
+        // The builder reads the kept files while it builds into a staging folder; only the commit replaces them.
+        Install(apk, obb, builder, root, report, token);
+    }
+
     public static bool IsInstalled(string root) => File.Exists(Path.Combine(root, "installation.complete")) &&
         new[] { "sixguns.nro", "libAndroid.so", "base.apk", "obb/" + MainObb, "obb/" + PatchObb }
             .All(p => File.Exists(Path.Combine(root, p)));
@@ -78,7 +102,7 @@ public static class GameInstaller
             ValidatePort(Path.Combine(built, "sixguns.nro"));
             // Emulator only (never on a real SD card): tells the port it runs under the emulator.
             File.WriteAllText(Path.Combine(built, "emulator_mode"), "");
-            File.WriteAllText(Path.Combine(built, "installation.complete"), "sixguns-sd-build");
+            File.WriteAllText(Path.Combine(built, "installation.complete"), BuildStamp(builder));
             token.ThrowIfCancellationRequested();
             report("Finishing installation…");
             if (!Directory.Exists(root))

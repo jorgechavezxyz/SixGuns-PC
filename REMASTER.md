@@ -18,7 +18,11 @@ The game is installed by the Six Guns NX SD Builder, the same tool that builds a
 
 Then choose **Play**. Use **Controls** to choose a connected controller or change keyboard bindings. Default keyboard: WASD move; IJKL camera; arrows navigate; Z confirm; X back; Q/O triggers; minus/plus game menu buttons. F11 toggles full screen. Escape leaves full screen first, then offers to stop the game. Returning from the game returns to the launcher.
 
-For LAN play, use the game's Multiplayer menu. Each player needs the same port and map mods. Stadium generation is not included in this launcher version; existing user-created mods can be placed in the game's mods folder.
+For LAN play, use the game's Multiplayer menu. Each player needs the same port and map mods. The launcher installs the same port and Stadium map as the Switch SD Builder; your own mods can be placed in the game's mods folder.
+
+## Updates
+
+The launcher checks this project's GitHub releases when it starts and shows **Update** when a newer version is out (or use **Check for updates**). The update is downloaded, checked against the release's SHA256SUMS.txt and installed in place; the launcher then restarts and rebuilds the game from the official files it kept in the game folder (`base.apk`, `obb/`), so you don't choose them again. Saves, settings, keys, firmware, your own mods and a portable `remaster-data` folder are kept. On macOS, keep the app in Applications so it can update itself.
 
 ## Your data
 
@@ -35,6 +39,7 @@ All paths are relative to this repository or its parent, `remaster-nx`. Build pr
 - Windows: install the .NET SDK version from `global.json` into `../toolchain/dotnet`, then run `./build-remaster.ps1`. Use `-Package` for a self-contained release ZIP.
 - macOS: use the SDK from `global.json` and run `bash build-remaster-macos.sh arm64` (or `x64`). Set `DOTNET_ROOT` if needed. The existing Mac SDK may live outside the SSD; project outputs and caches stay on it. Building and signing the Mac app requires macOS.
 - The port and its installer come from SixGuns-NX: `distribution/sixguns-nx.ref` pins the commit whose `tools/packaging/sixguns.nro` and SD Builder (`tools/packaging/sd_builder_cli.spec`) are bundled into `sd-builder/` (CI, or `build-remaster.ps1` from a local checkout at that commit). To update the port, push it to SixGuns-NX first, then change the pinned commit.
+- Publishing an update: raise `<Version>` in `src/Ryujinx/Ryujinx.csproj`, then attach the three launcher ZIPs, `SHA256SUMS.txt` and the CI's `update.json` (artifact `update-manifest`) to the new release. Launchers offer a release only when it carries `update.json` and the package for their platform.
 - Validation status and remaining platform checks are recorded in the SSD's `remaster-nx/PLAN.md` and logs folder.
 
 Do not package the portable data directory, development test profiles, keys, firmware, game files or private research. Never push or publish without the owner's review.

@@ -37,6 +37,7 @@ try {
 $builder = Join-Path $projectRoot 'sd-builder'
 if (Test-Path $builder) { Remove-Item -Recurse -Force $builder }
 Copy-Item -Recurse (Join-Path $builderDist 'sixguns-sd-build') $builder
+Copy-Item (Join-Path $projectRoot 'distribution\sixguns-nx.ref') $builder
 & (Join-Path $builder 'sixguns-sd-build.exe') --self-test
 if ($LASTEXITCODE -ne 0) { throw 'SD Builder self-test failed.' }
 Push-Location $projectRoot
