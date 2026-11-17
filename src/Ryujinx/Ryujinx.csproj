@@ -9,7 +9,7 @@
     <Company>Six Guns NX project</Company>
     <Copyright>Six Guns NX project. Built on MIT-licensed open-source emulation code; see LICENSE.txt and THIRDPARTY.md.</Copyright>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-    <Version>0.1.0</Version>
+    <Version>0.1.1</Version>
     <DefineConstants Condition=" '$(ExtraDefineConstants)' != '' ">$(DefineConstants);$(ExtraDefineConstants)</DefineConstants>
     <SigningCertificate Condition=" '$(SigningCertificate)' == '' ">-</SigningCertificate>
     <ApplicationIcon>Ryujinx.ico</ApplicationIcon>
