@@ -25,6 +25,8 @@ public static partial class ModLibrary
         string Description, string Map, string State, string Message)
     {
         public string File => System.IO.Path.GetFileName(Path);
+        /// <summary>New things a content mod adds to the game (mod.json content.entities: weapons, outfits, props).</summary>
+        public int Adds { get; init; }
     }
 
     public const int Format = 1;
@@ -134,8 +136,10 @@ public static partial class ModLibrary
         }
         string map = m.TryGetProperty("map", out var mp) && mp.ValueKind == JsonValueKind.Object ? Str(mp, "name") : null;
         var (state, message) = PackageState(path, enabled, status);
+        int adds = m.TryGetProperty("content", out var ct) && ct.ValueKind == JsonValueKind.Object &&
+                   ct.TryGetProperty("entities", out var en) && en.ValueKind == JsonValueKind.Array ? en.GetArrayLength() : 0;
         return new Mod(path, enabled, true, id, name.Trim(), Str(m, "version"), Str(m, "author"), Str(m, "description"),
-            string.IsNullOrEmpty(map) ? null : map, state, message);
+            string.IsNullOrEmpty(map) ? null : map, state, message) { Adds = adds };
     }
 
     private static Mod ReadZip(string path, bool enabled, Dictionary<string, (string State, string Message)> status)

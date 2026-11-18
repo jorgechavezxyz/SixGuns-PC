@@ -244,6 +244,10 @@ static void ModTest(string dir, Action<bool, string> Check)
     ModLibrary.Add(root, v2);
     list = ModLibrary.List(root);
     Check(list.Count == 1 && list[0].Enabled, "adding a turned-off package turns it back on (one copy)");
+    string content = Package("guns.sgmod", "{\"id\":\"guns\",\"name\":\"Guns\",\"content\":{\"entities\":[{\"clone\":\"A\",\"as\":\"B\"},{\"clone\":\"C\",\"as\":\"D\"}]}}");
+    var guns = ModLibrary.Add(root, content);
+    Check(guns.Adds == 2 && guns.Map == null, "content mod: number of new things read");
+    ModLibrary.Remove(guns);
     Refused(() => Package("bad1.sgmod", null, ("files/a", "x")), "package without mod.json refused");
     Refused(() => Package("bad2.sgmod", "{\"id\":\"Bad Id\",\"name\":\"x\"}"), "invalid id refused");
     Refused(() => Package("bad3.sgmod", "{\"format\":2,\"id\":\"future\",\"name\":\"x\"}"), "newer format refused (update first)");

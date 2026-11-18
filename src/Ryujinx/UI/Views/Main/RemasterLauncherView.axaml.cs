@@ -416,7 +416,9 @@ public partial class RemasterLauncherView : UserControl
         var info = new StackPanel { Spacing = 3, VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center };
         string title = mod.Name + (string.IsNullOrEmpty(mod.Version) ? "" : "  " + mod.Version);
         info.Children.Add(new TextBlock { Text = title, FontSize = 15, FontWeight = FontWeight.SemiBold, TextWrapping = TextWrapping.Wrap });
-        string kind = mod.Map != null ? $"Multiplayer map: {mod.Map}" : mod.Package ? "Mod package" : "Mod zip";
+        string kind = mod.Map != null ? $"Multiplayer map: {mod.Map}"
+            : mod.Adds > 0 ? $"Adds {mod.Adds} new thing{(mod.Adds == 1 ? "" : "s")} to the game"
+            : mod.Package ? "Mod package" : "Mod zip";
         if (!string.IsNullOrEmpty(mod.Author)) kind += " · by " + mod.Author;
         info.Children.Add(new TextBlock { Text = kind, FontSize = 12, Foreground = ChosenText, TextWrapping = TextWrapping.Wrap });
         if (!string.IsNullOrEmpty(mod.Description))
