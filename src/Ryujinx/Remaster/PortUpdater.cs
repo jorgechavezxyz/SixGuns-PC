@@ -78,7 +78,7 @@ public static class PortUpdater
     {
         var release = await LatestAsync(token);
         if (release == null || release.Published <= BundledDate(builder) || release.Sha256 == Hash(bundledNro)) return null;
-        if (Cached(cache) is { } have && have.Sha256 == release.Sha256) return have;
+        if (Cached(cache) is { } have && (have.Sha256 == release.Sha256 || have.Published >= release.Published)) return have;
         if (release.Size <= 0 || release.Size > 64L * 1024 * 1024) throw new InvalidDataException("The port release has an unexpected size.");
         Directory.CreateDirectory(cache);
         string part = Path.Combine(cache, CachedNro + ".part");

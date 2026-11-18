@@ -29,6 +29,9 @@ internal static class RemasterUpdater
     private const string Manifest = "update.json";
     private const string Checksums = "SHA256SUMS.txt";
     private const string OldSuffix = ".sgold";
+    private const string StartupMarker = "startup.ok";
+    private const string SwapPending = "swap.pending";
+    private const string StartupMarkerVariable = "SIXGUNS_UPDATE_STARTUP_MARKER";
     private const string WindowsExe = "Six Guns Remaster-NX.exe";
 
     public sealed record Update(Version Version, string Commit, string Tag, string PackageUrl, string ChecksumsUrl, string PackageName);
@@ -131,6 +134,8 @@ internal static class RemasterUpdater
         string parent = Path.GetDirectoryName(location)!;
         // Staging next to the installed copy: same volume, so the swap is a set of renames.
         string staging = Path.Combine(OperatingSystem.IsWindows() ? location : parent, ".sixguns-update");
+        if (File.Exists(Path.Combine(staging, SwapPending)) && !File.Exists(Path.Combine(staging, StartupMarker)))
+            throw new IOException("A previous launcher update needs recovery. Keep the backup in " + staging);
         if (Directory.Exists(staging)) Directory.Delete(staging, true);
         Directory.CreateDirectory(staging);
         try
@@ -153,11 +158,13 @@ internal static class RemasterUpdater
             string extracted = Path.Combine(staging, "new");
             await Task.Run(() => Extract(package, extracted), token);
             token.ThrowIfCancellationRequested();
-            Install(extracted, location, restart);
+            await Task.Run(() => Install(extracted, location, restart));
         }
         catch
         {
-            try { Directory.Delete(staging, true); } catch { /* cleaned up at next start */ }
+            // A failed rollback can leave the only working copy in staging or in .sgold files.
+            if (!File.Exists(Path.Combine(staging, SwapPending)))
+                DeletePath(staging);
             throw;
         }
     }
@@ -195,24 +202,45 @@ internal static class RemasterUpdater
         ZipFile.ExtractToDirectory(package, destination);
     }
 
-    private static void Install(string extracted, string location, bool restart)
+    internal static void Install(string extracted, string location, bool restart)
     {
+        string staging = Path.GetDirectoryName(extracted)!;
+        string pending = Path.Combine(staging, SwapPending);
+        string marker = Path.Combine(staging, StartupMarker);
         if (OperatingSystem.IsMacOS())
         {
             string app = Directory.EnumerateDirectories(extracted, "*.app").SingleOrDefault()
                 ?? throw new InvalidDataException("The update does not contain the app.");
-            string old = Path.Combine(Path.GetDirectoryName(extracted)!, "previous.app");
-            Directory.Move(location, old);
-            try { Directory.Move(app, location); }
-            catch { Directory.Move(old, location); throw; }
-            if (restart) Process.Start(new ProcessStartInfo("/usr/bin/open") { ArgumentList = { "-n", location } });
+            string old = Path.Combine(staging, "previous.app");
+            File.WriteAllText(pending, "");
+            bool backedUp = false, installed = false;
+            try
+            {
+                Directory.Move(location, old);
+                backedUp = true;
+                Directory.Move(app, location);
+                installed = true;
+                if (restart)
+                {
+                    StartAndWaitForLauncher(Path.Combine(location, "Contents", "MacOS", "SixGunsRemasterNX"), marker);
+                }
+            }
+            catch
+            {
+                if (installed) Directory.Move(location, app);
+                if (backedUp) Directory.Move(old, location);
+                File.Delete(pending);
+                throw;
+            }
+            if (!restart) File.WriteAllText(marker, "");
             return;
         }
         // Windows: every packaged file and folder replaces its old copy, which is renamed to *.sgold (a running exe or
         // DLL can be renamed, not overwritten). Anything that is not part of the package stays: remaster-data (portable
         // player data), the staging folder, files the player added.
         if (!File.Exists(Path.Combine(extracted, WindowsExe))) throw new InvalidDataException("The update does not contain the launcher.");
-        var moved = new List<(string Target, bool HadOld)>();
+        var moved = new List<(string Source, string Target, bool HadOld)>();
+        File.WriteAllText(pending, "");
         try
         {
             foreach (string source in Directory.EnumerateFileSystemEntries(extracted))
@@ -226,24 +254,56 @@ internal static class RemasterUpdater
                     DeletePath(target + OldSuffix);
                     MovePath(target, target + OldSuffix);
                 }
+                moved.Add((source, target, hadOld));
                 MovePath(source, target);
-                moved.Add((target, hadOld));
             }
+            if (restart)
+                StartAndWaitForLauncher(Path.Combine(location, WindowsExe), marker);
+            else
+                File.WriteAllText(marker, "");
         }
         catch
         {
-            foreach (var (target, hadOld) in Enumerable.Reverse(moved))
+            bool restored = true;
+            foreach (var (source, target, hadOld) in Enumerable.Reverse(moved))
             {
                 try
                 {
-                    DeletePath(target);
+                    if (!File.Exists(source) && !Directory.Exists(source)) MovePath(target, source);
                     if (hadOld) MovePath(target + OldSuffix, target);
                 }
-                catch { /* best effort; the .sgold copy stays for a manual restore */ }
+                catch (Exception ex)
+                {
+                    restored = false;
+                    Log($"Update rollback: {ex.Message}");
+                }
             }
+            if (restored) File.Delete(pending);
             throw;
         }
-        if (restart) Process.Start(new ProcessStartInfo(Path.Combine(location, WindowsExe)) { UseShellExecute = false, WorkingDirectory = location });
+    }
+
+    private static void StartAndWaitForLauncher(string executable, string marker)
+    {
+        var start = new ProcessStartInfo(executable)
+        {
+            UseShellExecute = false,
+            WorkingDirectory = Path.GetDirectoryName(executable)!,
+        };
+        start.Environment[StartupMarkerVariable] = marker;
+        using var process = Process.Start(start) ?? throw new IOException("The updated launcher could not be started.");
+        var timer = Stopwatch.StartNew();
+        while (timer.Elapsed < TimeSpan.FromSeconds(30))
+        {
+            if (process.WaitForExit(100))
+                throw new IOException($"The updated launcher exited during startup ({process.ExitCode}).");
+            if (File.Exists(marker))
+                return;
+        }
+        try { process.Kill(entireProcessTree: true); }
+        catch (InvalidOperationException) when (process.HasExited) { }
+        process.WaitForExit();
+        throw new IOException("The updated launcher did not finish startup in time.");
     }
 
     /// <summary>At startup: removes what a finished update left behind (old files, the staging folder).</summary>
@@ -251,14 +311,21 @@ internal static class RemasterUpdater
     {
         try
         {
-            location ??= InstalledLocation;
-            if (OperatingSystem.IsWindows())
+            string marker = Environment.GetEnvironmentVariable(StartupMarkerVariable);
+            if (marker != null)
             {
-                foreach (string old in Directory.EnumerateFileSystemEntries(location, "*" + OldSuffix)) DeletePath(old);
-                DeletePath(Path.Combine(location, ".sixguns-update"));
+                File.WriteAllText(marker, "");
+                Environment.SetEnvironmentVariable(StartupMarkerVariable, null);
+                return;
             }
-            else if (OperatingSystem.IsMacOS() && location.EndsWith(".app", StringComparison.Ordinal))
-                DeletePath(Path.Combine(Path.GetDirectoryName(location)!, ".sixguns-update"));
+            location ??= InstalledLocation;
+            bool windows = OperatingSystem.IsWindows();
+            if (!windows && !(OperatingSystem.IsMacOS() && location.EndsWith(".app", StringComparison.Ordinal))) return;
+            string staging = Path.Combine(windows ? location : Path.GetDirectoryName(location)!, ".sixguns-update");
+            if (File.Exists(Path.Combine(staging, SwapPending)) && !File.Exists(Path.Combine(staging, StartupMarker))) return;
+            if (windows)
+                foreach (string old in Directory.EnumerateFileSystemEntries(location, "*" + OldSuffix)) DeletePath(old);
+            DeletePath(staging);
         }
         catch (Exception ex)
         {

@@ -43,7 +43,6 @@ public partial class RemasterLauncherView : UserControl
             }
         };
         RemasterUpdater.Log = message => Ryujinx.Common.Logging.Logger.Warning?.Print(Ryujinx.Common.Logging.LogClass.Application, message);
-        RemasterUpdater.CleanupAfterUpdate();
         var (version, _) = RemasterUpdater.Current;
         VersionLabel.Text = $"Version {version.ToString(3)}";
         PortUpdater.Log = RemasterUpdater.Log;
@@ -52,6 +51,7 @@ public partial class RemasterLauncherView : UserControl
         Refresh();
         if (_step == 3 && GameInstaller.NeedsRebuild(RemasterProfile.GameRoot, RemasterProfile.SdBuilder))
             _ = RebuildGame();
+        RemasterUpdater.CleanupAfterUpdate();
         _ = CheckForUpdates(manual: false);
     }
 

@@ -65,6 +65,7 @@ try
         File.Delete(ownMod);
     }
     await PortTest(Path.Combine(scratch, "port"), Check);
+    FailedStartupTest(Path.Combine(scratch, "startup"), Check);
     Console.WriteLine($"{passed} checks passed.");
 }
 finally { Directory.Delete(scratch, true); }
@@ -146,6 +147,12 @@ static async Task PortTest(string dir, Action<bool, string> Check)
         Check(await PortUpdater.RefreshAsync(cache, bundled, builder, _ => { }, default) is { } again && again.Sha256 == Sha(newer),
             "already cached: not downloaded again");
 
+        served = Nro(5);
+        feedJson = Feed("2026-11-19T00:00:00Z", served, served.Length);
+        var kept = await PortUpdater.RefreshAsync(cache, bundled, builder, _ => { }, default);
+        Check(kept?.Sha256 == Sha(newer) && File.ReadAllBytes(chosen.Path).SequenceEqual(newer),
+            "withdrawn release does not downgrade a newer cached port");
+
         File.WriteAllBytes(chosen.Path, Nro(4));
         Check(PortUpdater.Choose(cache, bundled, builder).Path == bundled, "tampered cached port is ignored");
 
@@ -160,6 +167,35 @@ static async Task PortTest(string dir, Action<bool, string> Check)
         Environment.SetEnvironmentVariable("SIXGUNS_PORT_FEED", null);
         try { await server; } catch { }
     }
+}
+
+static void FailedStartupTest(string root, Action<bool, string> Check)
+{
+    if (!OperatingSystem.IsMacOS() && !OperatingSystem.IsWindows()) return;
+
+    bool mac = OperatingSystem.IsMacOS();
+    string app = Path.Combine(root, mac ? "Six Guns.app" : "launcher");
+    string staging = Path.Combine(mac ? root : app, ".sixguns-update");
+    string extracted = Path.Combine(staging, "new");
+    string replacement = mac ? Path.Combine(extracted, "Six Guns.app") : extracted;
+    string exe = mac ? "Contents/MacOS/SixGunsRemasterNX" : "Six Guns Remaster-NX.exe";
+    string originalExe = Path.Combine(app, exe);
+    string replacementExe = Path.Combine(replacement, exe);
+    Directory.CreateDirectory(Path.GetDirectoryName(originalExe)!);
+    Directory.CreateDirectory(Path.GetDirectoryName(replacementExe)!);
+    File.WriteAllText(originalExe, "original launcher");
+    File.WriteAllText(replacementExe, mac ? "#!/bin/sh\nexit 17\n" : "invalid executable");
+    if (OperatingSystem.IsMacOS())
+        File.SetUnixFileMode(replacementExe, UnixFileMode.UserRead | UnixFileMode.UserExecute);
+
+    bool rejected = false;
+    try { RemasterUpdater.Install(extracted, app, restart: true); }
+    catch (Exception ex) when (ex is IOException or System.ComponentModel.Win32Exception) { rejected = true; }
+    Check(rejected && File.ReadAllText(originalExe) == "original launcher",
+        "replacement that fails startup restores the original launcher");
+    Check(!File.Exists(Path.Combine(staging, "swap.pending")) &&
+          !Directory.Exists(Path.Combine(staging, "previous.app")) &&
+          !File.Exists(originalExe + ".sgold"), "successful rollback clears its recovery markers");
 }
 
 static async Task UpdateTest(string feed, string app)
