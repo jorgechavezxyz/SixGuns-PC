@@ -15,10 +15,11 @@ publish="$workspace/dist/macos-$arch-publish"
 app="$workspace/dist/macos-$arch/Six Guns Remaster-NX.app"
 if [[ -e "$publish" || -e "$app" ]]; then echo 'Move the previous publish/app folders aside first.'; exit 1; fi
 cd "$project_root"
-# sd-builder/: the Six Guns NX SD Builder (command-line) from the commit pinned in distribution/sixguns-nx.ref,
-# built on this Mac (PyInstaller output is per-platform):
-#   (cd <SixGuns-NX checkout at that commit> && python3 -m PyInstaller --noconfirm tools/packaging/sd_builder_cli.spec)
+# sd-builder/: the Six Guns NX SD Builder (command-line) from a SixGuns-NX checkout at its newest release (or the
+# commit pinned in distribution/sixguns-nx.ref), built on this Mac (PyInstaller output is per-platform):
+#   (cd <SixGuns-NX checkout> && python3 -m PyInstaller --noconfirm tools/packaging/sd_builder_cli.spec)
 #   cp -R <checkout>/dist/sixguns-sd-build sd-builder
+#   git -C <checkout> log -1 --format='%H%n%cI' > sd-builder/sixguns-nx.ref   # commit + date (see PortUpdater.cs)
 [ -x sd-builder/sixguns-sd-build ] || { echo 'sd-builder/ missing: build the SD Builder first (see above)'; exit 1; }
 "$dotnet_bin" publish src/Ryujinx -c Release -r "osx-$arch" "-p:RuntimeIdentifiers=osx-$arch" -m:1 --self-contained true --disable-build-servers -o "$publish"
 mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources"

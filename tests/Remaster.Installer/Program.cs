@@ -64,9 +64,103 @@ try
         File.Delete(sentinel);
         File.Delete(ownMod);
     }
+    await PortTest(Path.Combine(scratch, "port"), Check);
     Console.WriteLine($"{passed} checks passed.");
 }
 finally { Directory.Delete(scratch, true); }
+
+// PortUpdater against a local release feed: the desktop runs the newest SixGuns-NX release's sixguns.nro, never an
+// older or damaged one. Offline (a small HTTP server on 127.0.0.1).
+static async Task PortTest(string dir, Action<bool, string> Check)
+{
+    Directory.CreateDirectory(dir);
+    byte[] Nro(byte fill)
+    {
+        var b = new byte[0x1000];
+        Array.Fill(b, fill);
+        BitConverter.GetBytes(0x304f524eu).CopyTo(b, 0x10); // "NRO0"
+        BitConverter.GetBytes((uint)b.Length).CopyTo(b, 0x18);
+        return b;
+    }
+    string Sha(byte[] b) => Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(b)).ToLowerInvariant();
+    string builderDir = Path.Combine(dir, "sd-builder");
+    Directory.CreateDirectory(builderDir);
+    string builder = Path.Combine(builderDir, "sixguns-sd-build");
+    string bundled = Path.Combine(dir, "bundled.nro");
+    byte[] bundledBytes = Nro(1), newer = Nro(2);
+    File.WriteAllBytes(bundled, bundledBytes);
+    var bundledDate = DateTimeOffset.Parse("2026-11-17T12:00:00Z");
+    File.WriteAllLines(Path.Combine(builderDir, "sixguns-nx.ref"), new[] { "34da270c70dafe14df1c99a5e2182462de5deb59", bundledDate.ToString("o"), "v0.1.3-preview" });
+    Check(GameInstaller.BuildStamp(builder) == "sixguns-nx 34da270c70dafe14df1c99a5e2182462de5deb59", "build stamp uses only the commit line");
+    Check(PortUpdater.BundledDate(builder) == bundledDate, "bundled port date read from sixguns-nx.ref");
+
+    var listener = new System.Net.Sockets.TcpListener(System.Net.IPAddress.Loopback, 0);
+    listener.Start();
+    int port = ((System.Net.IPEndPoint)listener.LocalEndpoint).Port;
+    string feedJson = "[]";
+    byte[] served = newer;
+    using var stop = new CancellationTokenSource();
+    var server = Task.Run(async () =>
+    {
+        while (!stop.IsCancellationRequested)
+        {
+            System.Net.Sockets.TcpClient client;
+            try { client = await listener.AcceptTcpClientAsync(stop.Token); } catch (OperationCanceledException) { return; }
+            using (client)
+            {
+                var stream = client.GetStream();
+                var reader = new StreamReader(stream);
+                string request = await reader.ReadLineAsync() ?? "";
+                while (!string.IsNullOrEmpty(await reader.ReadLineAsync())) { }
+                byte[] body = request.Contains("/feed") ? System.Text.Encoding.UTF8.GetBytes(feedJson) : served;
+                byte[] head = System.Text.Encoding.ASCII.GetBytes($"HTTP/1.1 200 OK\r\nContent-Length: {body.Length}\r\nConnection: close\r\n\r\n");
+                await stream.WriteAsync(head);
+                await stream.WriteAsync(body);
+            }
+        }
+    });
+    string Feed(string published, byte[] digestOf, long size) =>
+        $"[{{\"draft\":false,\"tag_name\":\"v9.9.9-test\",\"published_at\":\"{published}\",\"assets\":[{{\"name\":\"sixguns.nro\",\"size\":{size}," +
+        $"\"digest\":\"sha256:{Sha(digestOf)}\",\"browser_download_url\":\"http://127.0.0.1:{port}/sixguns.nro\"}}]}}]";
+    Environment.SetEnvironmentVariable("SIXGUNS_PORT_FEED", $"http://127.0.0.1:{port}/feed");
+    string cache = Path.Combine(dir, "cache");
+    try
+    {
+        feedJson = Feed("2026-11-10T00:00:00Z", newer, newer.Length);
+        Check(await PortUpdater.RefreshAsync(cache, bundled, builder, _ => { }, default) == null &&
+              PortUpdater.Choose(cache, bundled, builder).Path == bundled, "older release never replaces the bundled port");
+        feedJson = Feed("2026-11-20T00:00:00Z", bundledBytes, bundledBytes.Length);
+        Check(await PortUpdater.RefreshAsync(cache, bundled, builder, _ => { }, default) == null, "release equal to the bundled port: nothing downloaded");
+
+        served = Nro(3); // the server hands out a different file than the release lists
+        feedJson = Feed("2026-11-20T00:00:00Z", newer, newer.Length);
+        try { await PortUpdater.RefreshAsync(cache, bundled, builder, _ => { }, default); Check(false, "damaged download refused"); }
+        catch (InvalidDataException) { Check(true, "damaged download refused"); }
+        Check(PortUpdater.Choose(cache, bundled, builder).Path == bundled && !Directory.EnumerateFiles(cache, "*.part").Any(),
+            "after a refused download the bundled port runs, no partial file left");
+
+        served = newer;
+        var got = await PortUpdater.RefreshAsync(cache, bundled, builder, _ => { }, default);
+        var chosen = PortUpdater.Choose(cache, bundled, builder);
+        Check(got != null && chosen.Tag == "v9.9.9-test" && File.ReadAllBytes(chosen.Path).SequenceEqual(newer), "newer release downloaded, verified and chosen");
+        Check(await PortUpdater.RefreshAsync(cache, bundled, builder, _ => { }, default) is { } again && again.Sha256 == Sha(newer),
+            "already cached: not downloaded again");
+
+        File.WriteAllBytes(chosen.Path, Nro(4));
+        Check(PortUpdater.Choose(cache, bundled, builder).Path == bundled, "tampered cached port is ignored");
+
+        File.WriteAllLines(Path.Combine(builderDir, "sixguns-nx.ref"), new[] { "f00d", "2026-12-01T00:00:00Z", "" });
+        File.WriteAllBytes(Path.Combine(cache, "sixguns.nro"), newer);
+        Check(PortUpdater.Choose(cache, bundled, builder).Path == bundled, "launcher bundling a newer port ignores an older cached release");
+    }
+    finally
+    {
+        stop.Cancel();
+        listener.Stop();
+        Environment.SetEnvironmentVariable("SIXGUNS_PORT_FEED", null);
+        try { await server; } catch { }
+    }
+}
 
 static async Task UpdateTest(string feed, string app)
 {

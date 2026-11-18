@@ -24,12 +24,32 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           global-json-file: global.json
-      - name: Read pinned SixGuns-NX commit
+      # distribution/sixguns-nx.ref: "latest-release" (the newest SixGuns-NX release, the port Switch players update
+      # to) or a commit to pin (only to hold back or roll back a port).
+      - name: Resolve SixGuns-NX port
         id: nx
         shell: bash
-        run: echo "ref=$(head -n1 distribution/sixguns-nx.ref | tr -d '[:space:]')" >> "$GITHUB_OUTPUT"
-      # The game is installed by the Switch port's own SD Builder (command-line build) from the pinned commit,
-      # with the sixguns.nro it carries: desktop and Switch players get identical builds.
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          want=$(head -n1 distribution/sixguns-nx.ref | tr -d '[:space:]')
+          if [ "$want" = "latest-release" ]; then
+            curl -fsSL -H "Authorization: Bearer $GH_TOKEN" "https://api.github.com/repos/jorgechavezxyz/SixGuns-NX/releases?per_page=5" > nx-releases.json
+            python - <<'EOF' >> "$GITHUB_OUTPUT"
+          import json
+          for r in json.load(open('nx-releases.json')):
+              nro = [a for a in r['assets'] if a['name'] == 'sixguns.nro' and (a.get('digest') or '').startswith('sha256:')]
+              if r['draft'] or not nro: continue
+              print('ref=' + r['tag_name']); print('tag=' + r['tag_name']); print('nro_sha256=' + nro[0]['digest'][7:]); break
+          else:
+              raise SystemExit('No SixGuns-NX release with sixguns.nro')
+          EOF
+          else
+            echo "ref=$want" >> "$GITHUB_OUTPUT"; echo "tag=" >> "$GITHUB_OUTPUT"; echo "nro_sha256=" >> "$GITHUB_OUTPUT"
+          fi
+          cat "$GITHUB_OUTPUT"
+      # The game is installed by the Switch port's own SD Builder (command-line build) from that commit, with the
+      # sixguns.nro it carries: desktop and Switch players get identical builds.
       - uses: actions/checkout@v4
         with:
           repository: jorgechavezxyz/SixGuns-NX
@@ -44,10 +64,19 @@ jobs:
           python -m pip install pyinstaller numpy
           (cd sixguns-nx && python -m PyInstaller --noconfirm tools/packaging/sd_builder_cli.spec)
           cp -R sixguns-nx/dist/sixguns-sd-build sd-builder
-          cp distribution/sixguns-nx.ref sd-builder/   # tells an installed game which builder made it (rebuild after updates)
+          # commit (which builder made an installed game: rebuild after updates), commit date (PortUpdater only
+          # takes newer releases), release tag
+          git -C sixguns-nx log -1 --format='%H%n%cI' > sd-builder/sixguns-nx.ref
+          echo "${{ steps.nx.outputs.tag }}" >> sd-builder/sixguns-nx.ref
+          cat sd-builder/sixguns-nx.ref
+          nro=$(python -c "import hashlib;print(hashlib.sha256(open('sixguns-nx/tools/packaging/sixguns.nro','rb').read()).hexdigest())")
+          # The bundled port must be byte-identical to the release Switch players download.
+          if [ -n "${{ steps.nx.outputs.nro_sha256 }}" ] && [ "$nro" != "${{ steps.nx.outputs.nro_sha256 }}" ]; then
+            echo "tools/packaging/sixguns.nro at ${{ steps.nx.outputs.tag }} ($nro) differs from the release's sixguns.nro"; exit 1
+          fi
           exe=sd-builder/sixguns-sd-build; [ -f "$exe.exe" ] && exe="$exe.exe"
           "$exe" --self-test | tee sd-builder-selftest.txt
-          grep -q "nro_sha256=$(python -c "import hashlib;print(hashlib.sha256(open('sixguns-nx/tools/packaging/sixguns.nro','rb').read()).hexdigest())")" sd-builder-selftest.txt
+          grep -q "nro_sha256=$nro" sd-builder-selftest.txt
       - name: Installer safety tests
         shell: bash
         run: |

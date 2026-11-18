@@ -24,6 +24,7 @@ public partial class RemasterLauncherView : UserControl
     private string _obb;
     private CancellationTokenSource _cancellation;
     private RemasterUpdater.Update _update;
+    private Task _portRefresh = Task.CompletedTask;
     private static readonly IBrush NormalText = new SolidColorBrush(Color.Parse("#C6CFC7"));
     private static readonly IBrush ErrorText = new SolidColorBrush(Color.Parse("#F08D7A"));
     private static readonly IBrush ChosenText = new SolidColorBrush(Color.Parse("#DEB46C"));
@@ -45,10 +46,36 @@ public partial class RemasterLauncherView : UserControl
         RemasterUpdater.CleanupAfterUpdate();
         var (version, _) = RemasterUpdater.Current;
         VersionLabel.Text = $"Version {version.ToString(3)}";
+        PortUpdater.Log = RemasterUpdater.Log;
+        ShowPortVersion();
+        _portRefresh = RefreshPort();
         Refresh();
         if (_step == 3 && GameInstaller.NeedsRebuild(RemasterProfile.GameRoot, RemasterProfile.SdBuilder))
             _ = RebuildGame();
         _ = CheckForUpdates(manual: false);
+    }
+
+    /// <summary>Fetches the newest SixGuns-NX release's port (the one Switch players update to) in the background.
+    /// Silent: offline or on errors the newest port already here is used.</summary>
+    private async Task RefreshPort()
+    {
+        try
+        {
+            var release = await Task.Run(() => PortUpdater.RefreshAsync(RemasterProfile.PortCache, RemasterProfile.BundledNro,
+                RemasterProfile.SdBuilder, _ => { }, CancellationToken.None));
+            if (release != null) ShowPortVersion();
+        }
+        catch (Exception ex)
+        {
+            RemasterUpdater.Log("Port update check: " + ex.Message);
+        }
+    }
+
+    private void ShowPortVersion()
+    {
+        var (version, _) = RemasterUpdater.Current;
+        string tag = PortUpdater.Choose(RemasterProfile.PortCache, RemasterProfile.BundledNro, RemasterProfile.SdBuilder).Tag;
+        VersionLabel.Text = tag == null ? $"Version {version.ToString(3)}" : $"Version {version.ToString(3)} · port {tag}";
     }
 
     /// <summary>After a launcher update: rebuild the game with the new port from the player's kept game files.</summary>
@@ -320,9 +347,17 @@ public partial class RemasterLauncherView : UserControl
                 await RebuildGame();
                 if (GameInstaller.NeedsRebuild(RemasterProfile.GameRoot, RemasterProfile.SdBuilder)) return;
             }
-            // Update only our executable; game data and saves remain in place.
-            GameInstaller.ValidatePort(RemasterProfile.BundledNro);
-            File.Copy(RemasterProfile.BundledNro, RemasterProfile.GamePath, true);
+            // The newest port: a just-published SixGuns-NX release (what Switch players update to) when it is
+            // downloaded in time, else the bundled one. Only the executable changes; game data and saves stay.
+            if (!_portRefresh.IsCompleted)
+            {
+                Status.Text = "Getting the latest Six Guns port…";
+                await Task.WhenAny(_portRefresh, Task.Delay(TimeSpan.FromSeconds(20)));
+                Status.Text = "";
+            }
+            string port = PortUpdater.Choose(RemasterProfile.PortCache, RemasterProfile.BundledNro, RemasterProfile.SdBuilder).Path;
+            GameInstaller.ValidatePort(port);
+            File.Copy(port, RemasterProfile.GamePath, true);
             File.WriteAllText(Path.Combine(RemasterProfile.GameRoot, "emulator_mode"), "");
             RemasterProfile.Apply();
             if (!_window.ApplicationLibrary.TryGetApplicationsFromFile(RemasterProfile.GamePath, out var apps) || apps.Count == 0)

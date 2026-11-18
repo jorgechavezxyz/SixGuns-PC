@@ -27,12 +27,13 @@ public static class GameInstaller
     public const string PatchObb = "patch.29523.com.gameloft.android.ANMP.GloftSXHM.obb";
     private const string StadiumMod = "mods/30_stadium.zip";
 
-    /// <summary>Which SD Builder (SixGuns-NX commit, distribution/sixguns-nx.ref, copied next to the builder) made
+    /// <summary>Which SD Builder (SixGuns-NX commit, resolved by CI / build-remaster.ps1 into sd-builder/sixguns-nx.ref) made
     /// an installation. A launcher update with a newer builder rebuilds the game from the player's kept files.</summary>
     public static string BuildStamp(string builder)
     {
         string reference = Path.Combine(Path.GetDirectoryName(builder)!, "sixguns-nx.ref");
-        return File.Exists(reference) ? "sixguns-nx " + File.ReadAllText(reference).Trim() : "sixguns-sd-build";
+        // First line: the commit (the date and release tag that follow are for PortUpdater).
+        return File.Exists(reference) ? "sixguns-nx " + (File.ReadLines(reference).FirstOrDefault() ?? "").Trim() : "sixguns-sd-build";
     }
 
     /// <summary>Installed, but by an older SD Builder than the one this launcher carries.</summary>
