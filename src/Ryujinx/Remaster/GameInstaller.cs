@@ -25,7 +25,9 @@ public static class GameInstaller
     }
     public const string MainObb = "main.29431.com.gameloft.android.ANMP.GloftSXHM.obb";
     public const string PatchObb = "patch.29523.com.gameloft.android.ANMP.GloftSXHM.obb";
+    // The Stadium map: a mod package from SD Builders since the mod manager (2026-11-18), a plain zip before.
     private const string StadiumMod = "mods/30_stadium.zip";
+    private const string StadiumPackage = "mods/stadium.sgmod";
 
     /// <summary>Which SD Builder (SixGuns-NX commit, resolved by CI / build-remaster.ps1 into sd-builder/sixguns-nx.ref) made
     /// an installation. A launcher update with a newer builder rebuilds the game from the player's kept files.</summary>
@@ -97,9 +99,19 @@ public static class GameInstaller
         {
             RunBuilder(builder, apk, obbFolder, Path.Combine(stage, "out"), report, token);
             string built = Path.Combine(stage, "out", "switch", "sixguns");
-            foreach (string required in new[] { "sixguns.nro", "libAndroid.so", "base.apk", "obb/" + MainObb, "obb/" + PatchObb, StadiumMod })
+            foreach (string required in new[] { "sixguns.nro", "libAndroid.so", "base.apk", "obb/" + MainObb, "obb/" + PatchObb })
                 if (!File.Exists(Path.Combine(built, required)))
                     throw new InvalidDataException($"The game installer did not produce {required}. Extract a fresh copy of the launcher.");
+            bool package = File.Exists(Path.Combine(built, StadiumPackage));
+            if (!package && !File.Exists(Path.Combine(built, StadiumMod)))
+                throw new InvalidDataException("The game installer did not produce the Stadium map. Extract a fresh copy of the launcher.");
+            // A Stadium the player turned off in the mod list stays off: the new copy replaces the turned-off one.
+            string offStadium = Path.Combine(root, "mods", "disabled", "stadium.sgmod");
+            if (package && File.Exists(offStadium))
+            {
+                File.Copy(Path.Combine(built, StadiumPackage), offStadium, true);
+                File.Delete(Path.Combine(built, StadiumPackage));
+            }
             ValidatePort(Path.Combine(built, "sixguns.nro"));
             // Emulator only (never on a real SD card): tells the port it runs under the emulator.
             File.WriteAllText(Path.Combine(built, "emulator_mode"), "");
@@ -111,11 +123,13 @@ public static class GameInstaller
                 Directory.Move(built, root);
                 return;
             }
+            // the package replaces the zip older builders made (same map; the port would skip the zip anyway)
+            if (package && File.Exists(Path.Combine(root, StadiumMod))) File.Delete(Path.Combine(root, StadiumMod));
             // Commit only managed paths. Roll back on errors; never touch player data (save/, prefs.txt,
             // device_id.txt, save_backups/, the player's own mods).
             string backup = Path.Combine(stage, "previous");
             Directory.CreateDirectory(backup);
-            string[] managed = { "base.apk", "libAndroid.so", "assets", "obb", "sixguns.nro", StadiumMod, "emulator_mode", "lan", "installation.complete" };
+            string[] managed = { "base.apk", "libAndroid.so", "assets", "obb", "sixguns.nro", StadiumMod, StadiumPackage, "emulator_mode", "lan", "installation.complete" };
             var movedOld = new List<string>();
             var movedNew = new List<string>();
             try

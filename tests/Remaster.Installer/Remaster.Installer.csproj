@@ -5,5 +5,5 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <EnableNETAnalyzers>false</EnableNETAnalyzers>
   </PropertyGroup>
-  <ItemGroup><Compile Include="../../src/Ryujinx/Remaster/GameInstaller.cs" Link="GameInstaller.cs" /><Compile Include="../../src/Ryujinx/Remaster/RemasterUpdater.cs" Link="RemasterUpdater.cs" /><Compile Include="../../src/Ryujinx/Remaster/PortUpdater.cs" Link="PortUpdater.cs" /></ItemGroup>
+  <ItemGroup><Compile Include="../../src/Ryujinx/Remaster/GameInstaller.cs" Link="GameInstaller.cs" /><Compile Include="../../src/Ryujinx/Remaster/RemasterUpdater.cs" Link="RemasterUpdater.cs" /><Compile Include="../../src/Ryujinx/Remaster/PortUpdater.cs" Link="PortUpdater.cs" /><Compile Include="../../src/Ryujinx/Remaster/ModLibrary.cs" Link="ModLibrary.cs" /></ItemGroup>
 </Project>

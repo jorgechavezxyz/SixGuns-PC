@@ -51,7 +51,7 @@ try
     {
         GameInstaller.Install(args[0], args[1], builder, args[2], Console.WriteLine, default);
         Check(GameInstaller.IsInstalled(args[2]), "official fresh install complete");
-        Check(File.Exists(Path.Combine(args[2], "mods", "30_stadium.zip")), "Stadium map installed like on Switch");
+        Check(File.Exists(Path.Combine(args[2], "mods", "stadium.sgmod")) || File.Exists(Path.Combine(args[2], "mods", "30_stadium.zip")), "Stadium map installed like on Switch");
         Check(File.Exists(Path.Combine(args[2], "emulator_mode")), "emulator marker added by the launcher");
         Directory.CreateDirectory(Path.Combine(args[2], "save"));
         string sentinel = Path.Combine(args[2], "save", "installer-test-sentinel");
@@ -65,6 +65,7 @@ try
         File.Delete(ownMod);
     }
     await PortTest(Path.Combine(scratch, "port"), Check);
+    ModTest(Path.Combine(scratch, "mods"), Check);
     Console.WriteLine($"{passed} checks passed.");
 }
 finally { Directory.Delete(scratch, true); }
@@ -203,4 +204,68 @@ static async Task UpdateTest(string feed, string app)
     RemasterUpdater.CleanupAfterUpdate(app);
     Check(!Directory.EnumerateFileSystemEntries(app, "*.sgold").Any() && !Directory.Exists(Path.Combine(app, ".sixguns-update")), "cleanup after the new version starts");
     Console.WriteLine($"{passed} update checks passed.");
+}
+
+// ModLibrary: the launcher's mod list over the game's mods folder (what the port reads on a Switch too).
+static void ModTest(string dir, Action<bool, string> Check)
+{
+    string root = Path.Combine(dir, "game"), src = Path.Combine(dir, "downloads");
+    Directory.CreateDirectory(Path.Combine(root, "save"));
+    Directory.CreateDirectory(src);
+    File.WriteAllText(Path.Combine(root, "save", "sentinel"), "keep");
+    string Package(string file, string json, params (string Name, string Data)[] extra)
+    {
+        string p = Path.Combine(src, file);
+        using var z = System.IO.Compression.ZipFile.Open(p, System.IO.Compression.ZipArchiveMode.Create);
+        if (json != null) using (var w = new StreamWriter(z.CreateEntry("mod.json").Open())) w.Write(json);
+        foreach (var (n, d) in extra) using (var w = new StreamWriter(z.CreateEntry(n).Open())) w.Write(d);
+        return p;
+    }
+    void Refused(Func<string> make, string name)
+    {
+        try { ModLibrary.Add(root, make()); Check(false, name); }
+        catch (InvalidDataException) { Check(true, name); }
+    }
+    string good = Package("Cool Map v1.sgmod", "{\"format\":1,\"id\":\"coolmap\",\"name\":\"Cool Map\",\"version\":\"1.0\",\"author\":\"someone\"," +
+        "\"description\":\"A \\\"cool\\\" map\",\"map\":{\"name\":\"Cool\",\"base\":1,\"level\":\"custommaps/cool/cool.bclara\"}}",
+        ("files/textures/cool_df.tga", "x"));
+    var added = ModLibrary.Add(root, good);
+    Check(added.Id == "coolmap" && added.Map == "Cool" && added.Description == "A \"cool\" map" && File.Exists(Path.Combine(root, "mods", "coolmap.sgmod")),
+        "package added under its id, manifest read");
+    Check(added.State == "new", "new package: set up at the next Play");
+    string v2 = Package("coolmap-2.sgmod", "{\"id\":\"coolmap\",\"name\":\"Cool Map\",\"version\":\"2.0\"}");
+    ModLibrary.Add(root, v2);
+    var list = ModLibrary.List(root);
+    Check(list.Count == 1 && list[0].Version == "2.0", "same id replaces the installed package (update)");
+    ModLibrary.SetEnabled(root, list[0], false);
+    list = ModLibrary.List(root);
+    Check(list.Count == 1 && !list[0].Enabled && list[0].State == "off" && File.Exists(Path.Combine(root, "mods", "disabled", "coolmap.sgmod")),
+        "turned off: moved to mods/disabled/, still listed");
+    ModLibrary.Add(root, v2);
+    list = ModLibrary.List(root);
+    Check(list.Count == 1 && list[0].Enabled, "adding a turned-off package turns it back on (one copy)");
+    Refused(() => Package("bad1.sgmod", null, ("files/a", "x")), "package without mod.json refused");
+    Refused(() => Package("bad2.sgmod", "{\"id\":\"Bad Id\",\"name\":\"x\"}"), "invalid id refused");
+    Refused(() => Package("bad3.sgmod", "{\"format\":2,\"id\":\"future\",\"name\":\"x\"}"), "newer format refused (update first)");
+    Refused(() => Package("bad4.sgmod", "{\"id\":\"evil\",\"name\":\"x\"}", ("../../save/sentinel", "gone")), "path outside the package refused");
+    Refused(() => { string p = Path.Combine(src, "notzip.sgmod"); File.WriteAllText(p, "hello"); return p; }, "not a zip refused");
+    Refused(() => { string p = Path.Combine(src, "readme.txt"); File.WriteAllText(p, "hello"); return p; }, "other file types refused");
+    string zipped = Path.Combine(src, "20_hats.zip");
+    using (var z = System.IO.Compression.ZipFile.Open(zipped, System.IO.Compression.ZipArchiveMode.Create))
+        using (var w = new StreamWriter(z.CreateEntry("textures/hat.tga", System.IO.Compression.CompressionLevel.Optimal).Open())) w.Write(new string('a', 4000));
+    Refused(() => zipped, "compressed mod zip refused (the game needs stored zips)");
+    string stored = Path.Combine(src, "20_stored.zip");
+    using (var z = System.IO.Compression.ZipFile.Open(stored, System.IO.Compression.ZipArchiveMode.Create))
+        using (var w = new StreamWriter(z.CreateEntry("custom_map.txt", System.IO.Compression.CompressionLevel.NoCompression).Open())) w.Write("name=Old Map\nbase=2\nlevel=x.bclara\n");
+    var plain = ModLibrary.Add(root, stored);
+    Check(!plain.Package && plain.Map == "Old Map", "plain stored zip added, its map name read");
+    // the port's report of the last start
+    Directory.CreateDirectory(Path.Combine(root, "mods", ".built"));
+    File.WriteAllText(Path.Combine(root, "mods", ".built", "status.txt"), "coolmap.sgmod\tcoolmap\terror\tCool Map\t2.0\tyour main:x is not the one this mod was made for\n");
+    File.SetLastWriteTimeUtc(Path.Combine(root, "mods", "coolmap.sgmod"), DateTime.UtcNow.AddMinutes(-5));
+    File.SetCreationTimeUtc(Path.Combine(root, "mods", "coolmap.sgmod"), DateTime.UtcNow.AddMinutes(-5));
+    var cool = ModLibrary.List(root).First(m => m.Id == "coolmap");
+    Check(cool.State == "error" && cool.Message.Contains("not the one"), "state and message from the game's last start");
+    foreach (var m in ModLibrary.List(root)) ModLibrary.Remove(m);
+    Check(ModLibrary.List(root).Count == 0 && File.ReadAllText(Path.Combine(root, "save", "sentinel")) == "keep", "removed; saves untouched");
 }

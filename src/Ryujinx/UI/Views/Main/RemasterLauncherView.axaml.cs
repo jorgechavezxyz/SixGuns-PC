@@ -170,6 +170,7 @@ public partial class RemasterLauncherView : UserControl
     {
         SetupPanel.IsVisible = _step < 3;
         ReadyPanel.IsVisible = RepairButton.IsVisible = _step == 3;
+        ModsPanel.IsVisible = false;
         UpdatePanel.IsVisible = _update != null && _step == 3;
         KeysPanel.IsVisible = _step == 0;
         FirmwarePanel.IsVisible = _step == 1;
@@ -379,6 +380,136 @@ public partial class RemasterLauncherView : UserControl
     {
         try { await StyleableAppWindow.ShowAsync(new SettingsWindow(_window.VirtualFileSystem, _window.ContentManager)); }
         catch (Exception ex) { Status.Text = "Couldn't open controls. " + ex.Message; }
+    }
+
+    // ------------------------------------------------------------------ mods (ModLibrary: the game's mods folder)
+
+    private string _confirmRemove;
+
+    private void OpenMods(object sender, RoutedEventArgs e)
+    {
+        if (_busy) return;
+        ReadyPanel.IsVisible = RepairButton.IsVisible = UpdatePanel.IsVisible = false;
+        ModsPanel.IsVisible = true;
+        Status.Text = "";
+        Status.Foreground = NormalText;
+        ShowMods();
+    }
+
+    private void CloseMods(object sender, RoutedEventArgs e)
+    {
+        Status.Text = "";
+        Refresh();
+    }
+
+    private void ShowMods()
+    {
+        _confirmRemove = null;
+        ModList.Children.Clear();
+        var mods = ModLibrary.List(RemasterProfile.GameRoot);
+        ModsEmpty.IsVisible = mods.Count == 0;
+        foreach (var mod in mods) ModList.Children.Add(ModRow(mod));
+    }
+
+    private Control ModRow(ModLibrary.Mod mod)
+    {
+        var info = new StackPanel { Spacing = 3, VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center };
+        string title = mod.Name + (string.IsNullOrEmpty(mod.Version) ? "" : "  " + mod.Version);
+        info.Children.Add(new TextBlock { Text = title, FontSize = 15, FontWeight = FontWeight.SemiBold, TextWrapping = TextWrapping.Wrap });
+        string kind = mod.Map != null ? $"Multiplayer map: {mod.Map}" : mod.Package ? "Mod package" : "Mod zip";
+        if (!string.IsNullOrEmpty(mod.Author)) kind += " · by " + mod.Author;
+        info.Children.Add(new TextBlock { Text = kind, FontSize = 12, Foreground = ChosenText, TextWrapping = TextWrapping.Wrap });
+        if (!string.IsNullOrEmpty(mod.Description))
+            info.Children.Add(new TextBlock { Text = mod.Description, FontSize = 12, Foreground = NormalText, TextWrapping = TextWrapping.Wrap });
+        (string state, IBrush brush) = mod.State switch
+        {
+            "ok" => ("On", (IBrush)new SolidColorBrush(Color.Parse("#9BC59D"))),
+            "off" => ("Off", new SolidColorBrush(Color.Parse("#8E9996"))),
+            "new" => ("On · " + mod.Message, new SolidColorBrush(Color.Parse("#9BC59D"))),
+            "replaced" => ("Not used · " + mod.Message, new SolidColorBrush(Color.Parse("#8E9996"))),
+            "needs" => ("Not loaded · " + mod.Message, ErrorText),
+            _ => ("Not loaded · " + mod.Message, ErrorText),
+        };
+        info.Children.Add(new TextBlock { Text = state, FontSize = 12, Foreground = brush, TextWrapping = TextWrapping.Wrap });
+
+        var toggle = new Button { Content = mod.Enabled ? "Turn off" : "Turn on", Padding = new Avalonia.Thickness(12, 6), FontSize = 13,
+            HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Stretch, HorizontalContentAlignment = Avalonia.Layout.HorizontalAlignment.Center };
+        toggle.Click += (_, _) => ModAction(() => ModLibrary.SetEnabled(RemasterProfile.GameRoot, mod, !mod.Enabled),
+            mod.Enabled ? $"{mod.Name} is off. It stays in the list." : $"{mod.Name} is on.");
+        var remove = new Button { Content = "Remove", Padding = new Avalonia.Thickness(12, 6), FontSize = 13,
+            HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Stretch, HorizontalContentAlignment = Avalonia.Layout.HorizontalAlignment.Center };
+        remove.Click += (_, _) =>
+        {
+            if (_confirmRemove != mod.Path)
+            {
+                _confirmRemove = mod.Path;
+                remove.Content = "Remove?";
+                Status.Foreground = NormalText;
+                Status.Text = $"Press Remove? again to delete {mod.File}. Your saves are not affected.";
+                return;
+            }
+            ModAction(() => ModLibrary.Remove(mod), $"{mod.Name} was removed.");
+        };
+        var buttons = new StackPanel { Spacing = 6, Width = 104, VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center };
+        buttons.Children.Add(toggle);
+        buttons.Children.Add(remove);
+        var grid = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto") };
+        grid.Children.Add(info);
+        Grid.SetColumn(buttons, 1);
+        buttons.Margin = new Avalonia.Thickness(12, 0, 0, 0);
+        grid.Children.Add(buttons);
+        return new Border
+        {
+            Background = new SolidColorBrush(Color.Parse("#1C2326")), BorderBrush = new SolidColorBrush(Color.Parse(mod.Enabled ? "#4A5356" : "#2E3538")),
+            BorderThickness = new Avalonia.Thickness(1), CornerRadius = new Avalonia.CornerRadius(7), Padding = new Avalonia.Thickness(14, 12),
+            Opacity = mod.Enabled ? 1.0 : 0.75, Child = grid,
+        };
+    }
+
+    private void ModAction(Action action, string done)
+    {
+        try
+        {
+            action();
+            ShowMods();
+            Status.Foreground = NormalText;
+            Status.Text = done;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException)
+        {
+            ShowMods();
+            Status.Foreground = ErrorText;
+            Status.Text = "That couldn't be changed. " + ex.Message;
+        }
+    }
+
+    private async void AddMod(object sender, RoutedEventArgs e)
+    {
+        if (_busy) return;
+        string path = await PickFile("Six Guns mod", "*.sgmod", "*.zip");
+        if (path == null) return;
+        try
+        {
+            var mod = await Task.Run(() => ModLibrary.Add(RemasterProfile.GameRoot, path));
+            ShowMods();
+            Status.Foreground = NormalText;
+            Status.Text = $"{mod.Name} added." + (mod.Map != null ? $" The {mod.Map} map is in the multiplayer lobby after you press Play." : "");
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException)
+        {
+            Status.Foreground = ErrorText;
+            Status.Text = "That mod couldn't be added. " + ex.Message;
+        }
+    }
+
+    private void OpenModsFolder(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            Directory.CreateDirectory(ModLibrary.Folder(RemasterProfile.GameRoot));
+            Ryujinx.Common.Helper.OpenHelper.OpenFolder(ModLibrary.Folder(RemasterProfile.GameRoot));
+        }
+        catch (Exception ex) { Status.Text = "Couldn't open the folder. " + ex.Message; }
     }
 
     private void Cancel(object sender, RoutedEventArgs e) => _cancellation?.Cancel();
