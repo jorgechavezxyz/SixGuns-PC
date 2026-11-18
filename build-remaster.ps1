@@ -49,7 +49,8 @@ try {
         if ($LASTEXITCODE -ne 0) { throw 'Windows publish failed.' }
         Move-Item -LiteralPath (Join-Path $output 'Ryujinx.exe') -Destination (Join-Path $output 'Six Guns Remaster-NX.exe')
         Copy-Item -LiteralPath (Join-Path $projectRoot 'REMASTER.md') -Destination (Join-Path $output 'START HERE.md')
-        Compress-Archive -LiteralPath $output -DestinationPath (Join-Path $workspace 'dist\SixGuns-Remaster-NX-win-x64.zip')
+        # Files at the zip's top level, like the CI release package (the launcher's updater expects that layout).
+        Compress-Archive -Path (Join-Path $output '*') -DestinationPath (Join-Path $workspace 'dist\SixGuns-Remaster-NX-win-x64.zip')
     } else {
         & $sdk build src/Ryujinx -c Release -r win-x64 -p:RuntimeIdentifiers=win-x64 -m:1 --disable-build-servers
         if ($LASTEXITCODE -ne 0) { throw 'Windows build failed.' }

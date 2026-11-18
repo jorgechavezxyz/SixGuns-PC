@@ -1,4 +1,5 @@
 using Avalonia.Controls;
+using Avalonia.Media;
 using Avalonia.Interactivity;
 using Avalonia.Platform.Storage;
 using Avalonia.Threading;
@@ -8,6 +9,7 @@ using Ryujinx.Common.Configuration;
 using System;
 using System.IO;
 using System.Linq;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -22,6 +24,9 @@ public partial class RemasterLauncherView : UserControl
     private string _obb;
     private CancellationTokenSource _cancellation;
     private RemasterUpdater.Update _update;
+    private static readonly IBrush NormalText = new SolidColorBrush(Color.Parse("#C6CFC7"));
+    private static readonly IBrush ErrorText = new SolidColorBrush(Color.Parse("#F08D7A"));
+    private static readonly IBrush ChosenText = new SolidColorBrush(Color.Parse("#DEB46C"));
 
     public RemasterLauncherView() => InitializeComponent();
 
@@ -62,6 +67,7 @@ public partial class RemasterLauncherView : UserControl
 
     private async Task CheckForUpdates(bool manual)
     {
+        if (manual) Status.Foreground = NormalText;
         string reason = RemasterUpdater.CannotUpdateReason();
         if (reason != null)
         {
@@ -94,13 +100,25 @@ public partial class RemasterLauncherView : UserControl
         await Run(async () =>
         {
             var update = _update;
-            await RemasterUpdater.DownloadAndInstallAsync(update,
-                message => Dispatcher.UIThread.Post(() => Status.Text = message), _cancellation.Token);
+            await RemasterUpdater.DownloadAndInstallAsync(update, message => Dispatcher.UIThread.Post(() =>
+            {
+                Status.Text = message;
+                var percent = Regex.Match(message, @"(\d+)%$");
+                Progress.IsIndeterminate = !percent.Success;
+                if (percent.Success) Progress.Value = int.Parse(percent.Groups[1].Value);
+            }), _cancellation.Token);
             started = true;
             Status.Text = "Restarting with the new version…";
         }, true);
         // The new version is running; it rebuilds the game from the kept files on its first start.
         if (started) _window.Close();
+    }
+
+    private async void ShowReleaseNotes(object sender, RoutedEventArgs e)
+    {
+        if (_update?.Tag == null) return;
+        try { await TopLevel.GetTopLevel(this)!.Launcher.LaunchUriAsync(new Uri($"https://github.com/jorgechavezxyz/SixGuns-PC/releases/tag/{Uri.EscapeDataString(_update.Tag)}")); }
+        catch (Exception ex) { Status.Text = "Couldn't open the release page. " + ex.Message; }
     }
 
     private bool HaveKeys()
@@ -129,8 +147,12 @@ public partial class RemasterLauncherView : UserControl
         KeysPanel.IsVisible = _step == 0;
         FirmwarePanel.IsVisible = _step == 1;
         FilesPanel.IsVisible = _step == 2;
-        BackButton.IsVisible = _step > 0;
-        StepLabel.Text = $"STEP {_step + 1} OF 3";
+        bool installed = _step < 3 && GameInstaller.IsInstalled(RemasterProfile.GameRoot);
+        BackButton.IsVisible = _step > 0 || installed;
+        BackButton.Content = _step == 0 && installed ? "Back to Play" : "Back";
+        StepLabel.Text = $"STEP {Math.Min(_step, 2) + 1} OF 3";
+        for (int i = 0; i < StepBars.Children.Count; i++)
+            ((Border)StepBars.Children[i]).Background = new SolidColorBrush(Color.Parse(i <= _step ? "#DEB46C" : "#3A4245"));
         Heading.Text = _step switch { 0 => "Make yourself at home.", 1 => "A little groundwork.", _ => "Bring your adventure." };
         Description.Text = _step switch
         {
@@ -161,10 +183,11 @@ public partial class RemasterLauncherView : UserControl
     {
         if (_busy) return;
         _busy = true;
-        SetupPanel.IsEnabled = ReadyPanel.IsEnabled = RepairButton.IsEnabled = false;
+        SetupPanel.IsEnabled = ReadyPanel.IsEnabled = RepairButton.IsEnabled = CheckUpdatesButton.IsEnabled = false;
         Progress.IsVisible = true;
         CancelButton.IsVisible = cancellable;
         Status.Text = "Preparing…";
+        Status.Foreground = NormalText;
         _cancellation = new CancellationTokenSource();
         try { await operation(); }
         catch (OperationCanceledException) { Status.Text = "Cancelled. Your existing game and saves are unchanged."; }
@@ -172,14 +195,16 @@ public partial class RemasterLauncherView : UserControl
         {
             Ryujinx.Common.Logging.Logger.Error?.Print(Ryujinx.Common.Logging.LogClass.Application, ex.ToString());
             Status.Text = "That couldn't finish. " + ex.Message;
+            Status.Foreground = ErrorText;
         }
         finally
         {
             _cancellation.Dispose();
             _cancellation = null;
             _busy = false;
-            SetupPanel.IsEnabled = ReadyPanel.IsEnabled = RepairButton.IsEnabled = true;
+            SetupPanel.IsEnabled = ReadyPanel.IsEnabled = RepairButton.IsEnabled = CheckUpdatesButton.IsEnabled = true;
             Progress.IsVisible = CancelButton.IsVisible = false;
+            Progress.IsIndeterminate = true;
         }
     }
 
@@ -242,7 +267,8 @@ public partial class RemasterLauncherView : UserControl
         try
         {
             _apk = await PickFile("Choose the official Six Guns 2.9.9a APK", "*.apk") ?? _apk;
-            ApkLabel.Text = _apk == null ? "No APK selected" : Path.GetFileName(_apk);
+            ApkLabel.Text = _apk == null ? "No APK selected" : "✓ " + Path.GetFileName(_apk);
+            if (_apk == null) ApkLabel.ClearValue(TextBlock.ForegroundProperty); else ApkLabel.Foreground = ChosenText;
             InstallButton.IsEnabled = _apk != null && _obb != null;
         }
         catch (Exception ex) { Status.Text = ex.Message; }
@@ -253,7 +279,15 @@ public partial class RemasterLauncherView : UserControl
         try
         {
             _obb = await PickFolder("Choose the folder containing both OBB files") ?? _obb;
-            ObbLabel.Text = _obb == null ? "No folder selected" : Path.GetFileName(_obb);
+            if (_obb == null) ObbLabel.Text = "No folder selected";
+            else
+            {
+                // Early hint only; the SD Builder does the real checks.
+                bool main = File.Exists(Path.Combine(_obb, GameInstaller.MainObb)), patch = File.Exists(Path.Combine(_obb, GameInstaller.PatchObb));
+                ObbLabel.Text = main && patch ? "✓ " + Path.GetFileName(_obb) + ": both OBB files found"
+                    : Path.GetFileName(_obb) + ": " + (!main && !patch ? "no Six Guns OBB files found here" : !main ? "the main OBB is missing" : "the patch OBB is missing");
+            }
+            if (_obb == null) ObbLabel.ClearValue(TextBlock.ForegroundProperty); else ObbLabel.Foreground = ObbLabel.Text.StartsWith("✓") ? ChosenText : ErrorText;
             InstallButton.IsEnabled = _apk != null && _obb != null;
         }
         catch (Exception ex) { Status.Text = ex.Message; }
@@ -275,9 +309,17 @@ public partial class RemasterLauncherView : UserControl
     {
         if (_busy) return;
         PlayButton.IsEnabled = false;
+        Status.Foreground = NormalText;
         try
         {
             if (!GameInstaller.IsInstalled(RemasterProfile.GameRoot)) { Refresh(); return; }
+            // A cancelled or failed update rebuild leaves game data from the previous port: never run the new
+            // port on it. Rebuild first (from the kept files), then start.
+            if (GameInstaller.NeedsRebuild(RemasterProfile.GameRoot, RemasterProfile.SdBuilder))
+            {
+                await RebuildGame();
+                if (GameInstaller.NeedsRebuild(RemasterProfile.GameRoot, RemasterProfile.SdBuilder)) return;
+            }
             // Update only our executable; game data and saves remain in place.
             GameInstaller.ValidatePort(RemasterProfile.BundledNro);
             File.Copy(RemasterProfile.BundledNro, RemasterProfile.GamePath, true);
@@ -293,6 +335,7 @@ public partial class RemasterLauncherView : UserControl
         {
             Ryujinx.Common.Logging.Logger.Error?.Print(Ryujinx.Common.Logging.LogClass.Application, ex.ToString());
             Status.Text = "Couldn't start the game. " + ex.Message;
+            Status.Foreground = ErrorText;
         }
         finally { PlayButton.IsEnabled = true; }
     }
@@ -305,6 +348,13 @@ public partial class RemasterLauncherView : UserControl
 
     private void Cancel(object sender, RoutedEventArgs e) => _cancellation?.Cancel();
     private void Quit(object sender, RoutedEventArgs e) => _window.Close();
-    private void RestartSetup(object sender, RoutedEventArgs e) { _step = 0; Status.Text = "Your saves and controller mappings will be kept."; ShowStep(); }
-    private void GoBack(object sender, RoutedEventArgs e) { _step = Math.Max(0, _step - 1); Status.Text = ""; ShowStep(); }
+    private void RestartSetup(object sender, RoutedEventArgs e) { _step = 0; Status.Foreground = NormalText; Status.Text = "Your saves and controller mappings will be kept."; ShowStep(); }
+    private void GoBack(object sender, RoutedEventArgs e)
+    {
+        Status.Text = "";
+        Status.Foreground = NormalText;
+        if (_step == 0) { Refresh(); return; } // left "Set up files again" without changes
+        _step--;
+        ShowStep();
+    }
 }

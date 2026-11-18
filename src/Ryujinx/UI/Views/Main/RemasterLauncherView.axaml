@@ -47,7 +47,14 @@
         <TextBlock Text="SIX GUNS REMASTER-NX" FontSize="11" LetterSpacing="2" Foreground="#A8AFAF" />
         <StackPanel Grid.Row="1" VerticalAlignment="Center" Spacing="18" Margin="0,30">
           <StackPanel x:Name="SetupPanel" Spacing="16">
-            <TextBlock x:Name="StepLabel" Text="STEP 1 OF 3" Foreground="#DEB46C" FontSize="12" LetterSpacing="2" />
+            <StackPanel Orientation="Horizontal" Spacing="14">
+              <StackPanel x:Name="StepBars" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                <Border Width="26" Height="4" CornerRadius="2" Background="#DEB46C" />
+                <Border Width="26" Height="4" CornerRadius="2" Background="#3A4245" />
+                <Border Width="26" Height="4" CornerRadius="2" Background="#3A4245" />
+              </StackPanel>
+              <TextBlock x:Name="StepLabel" Text="STEP 1 OF 3" Foreground="#DEB46C" FontSize="12" LetterSpacing="2" VerticalAlignment="Center" />
+            </StackPanel>
             <TextBlock x:Name="Heading" Text="Make yourself at home." FontSize="30" FontWeight="SemiBold" TextWrapping="Wrap" />
             <TextBlock x:Name="Description" Classes="muted" />
             <StackPanel x:Name="KeysPanel" Spacing="12">
@@ -78,14 +85,17 @@
             <TextBlock Text="F11: full screen · Esc: return from the game" Classes="muted" FontSize="12" />
             <Border x:Name="UpdatePanel" IsVisible="False" Background="#1C2326" BorderBrush="#9C7A3E" BorderThickness="1" CornerRadius="7" Padding="14,12">
               <Grid ColumnDefinitions="*,Auto">
-                <TextBlock x:Name="UpdateLabel" VerticalAlignment="Center" TextWrapping="Wrap" FontSize="13" />
+                <StackPanel VerticalAlignment="Center" Spacing="2">
+                  <TextBlock x:Name="UpdateLabel" TextWrapping="Wrap" FontSize="13" />
+                  <Button Content="What's new" Classes="link" Padding="0,2" Click="ShowReleaseNotes" />
+                </StackPanel>
                 <Button x:Name="UpdateButton" Grid.Column="1" Content="Update" Classes="primary" Padding="18,8" Margin="12,0,0,0" Click="InstallUpdate" />
               </Grid>
             </Border>
           </StackPanel>
-          <ProgressBar x:Name="Progress" IsVisible="False" IsIndeterminate="True" Height="4" Foreground="#DEB46C" />
+          <ProgressBar x:Name="Progress" IsVisible="False" IsIndeterminate="True" Minimum="0" Maximum="100" Height="4" Foreground="#DEB46C" Background="#2A3235" />
           <TextBlock x:Name="Status" TextWrapping="Wrap" FontSize="13" Foreground="#C6CFC7" />
-          <Button x:Name="CancelButton" Content="Cancel installation" Classes="link" Click="Cancel" IsVisible="False" />
+          <Button x:Name="CancelButton" Content="Cancel" Classes="link" Click="Cancel" IsVisible="False" />
         </StackPanel>
         <StackPanel Grid.Row="2" Spacing="4">
           <StackPanel Orientation="Horizontal" Spacing="18">
