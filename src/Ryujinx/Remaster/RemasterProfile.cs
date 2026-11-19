@@ -5,6 +5,8 @@ using Ryujinx.Common.Configuration;
 using Ryujinx.Common.Configuration.Hid;
 using Ryujinx.Common.Configuration.Hid.Keyboard;
 using Ryujinx.Input;
+using Ryujinx.Graphics.Gpu;
+using Ryujinx.HLE;
 using System;
 using System.IO;
 using System.Runtime.InteropServices;
@@ -57,6 +59,11 @@ internal static class RemasterProfile
             keyboard.RightJoycon.ButtonZr = defaults.RightJoycon.ButtonZr;
         }
 
+        // Keep expanded emulator RAM settings from consuming a small PC's host budget.
+        config.System.DramSize.Value = MemoryConfiguration.MemoryConfiguration4GiB;
+        ulong hostMemory = (ulong)Math.Max(0, GC.GetGCMemoryInfo().TotalAvailableMemoryBytes);
+        GraphicsConfig.ConserveMemory = ResourceBudget.ConserveMemory(hostMemory);
+        GraphicsConfig.HomebrewMemoryLimit = ResourceBudget.HomebrewMemoryBytes(hostMemory);
         config.System.EnableDockedMode.Value = false;
         config.System.MemoryManagerMode.Value = MemoryManagerMode.HostMappedUnsafe;
         config.System.UseHypervisor.Value = OperatingSystem.IsMacOS() && RuntimeInformation.ProcessArchitecture == Architecture.Arm64;

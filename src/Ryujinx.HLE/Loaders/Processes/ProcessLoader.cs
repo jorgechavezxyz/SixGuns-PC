@@ -10,6 +10,7 @@ using Ryujinx.Common;
 using Ryujinx.Common.Logging;
 using Ryujinx.Graphics.Gpu;
 using Ryujinx.HLE.HOS.SystemState;
+using Ryujinx.HLE.HOS.Kernel.Common;
 using Ryujinx.HLE.Loaders.Executables;
 using Ryujinx.HLE.Loaders.Processes.Extensions;
 using System;
@@ -322,6 +323,24 @@ namespace Ryujinx.HLE.Loaders.Processes
             // Make sure the process id is valid.
             if (processResult.ProcessId != 0)
             {
+                // libnx sizes its heap from GetInfo(TotalMemorySize). A full application pool makes this
+                // homebrew eagerly map ~3.2 GiB even though the engine needs much less. Set a real process
+                // resource limit BEFORE it starts: reported capacity and allocation checks then agree.
+                // Never lie about the size returned by SetHeapSize, or change other games' budgets.
+                ulong memoryBudget = GraphicsConfig.HomebrewMemoryLimit;
+                if (memoryBudget != 0 && Path.GetFileName(path).Equals("sixguns.nro", StringComparison.OrdinalIgnoreCase))
+                {
+                    var process = _device.System.KernelContext.Processes[processResult.ProcessId];
+                    long limit = Math.Min((long)memoryBudget, process.ResourceLimit.GetLimitValue(LimitableResource.Memory));
+                    var limitResult = process.ResourceLimit.SetLimitValue(LimitableResource.Memory, limit);
+                    if (!limitResult.IsSuccess)
+                    {
+                        Logger.Error?.Print(LogClass.Loader, $"Could not apply Six Guns memory budget: {limitResult}");
+                        return false;
+                    }
+                    Logger.Notice.Print(LogClass.Loader, $"Six Guns guest memory budget: {limit / (1024 * 1024)} MiB");
+                }
+
                 // Load RomFS.
                 if (romfsStream != null)
                 {

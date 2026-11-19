@@ -10,6 +10,12 @@ namespace Ryujinx.Graphics.Gpu
         /// </summary>
         public static float ResScale { get; set; } = 1f;
 
+        /// <summary>Reduce texture retention and Six Guns guest memory on small hosts.</summary>
+        public static bool ConserveMemory { get; set; }
+
+        /// <summary>Optional Six Guns NRO process budget, applied before its libnx heap is sized.</summary>
+        public static ulong HomebrewMemoryLimit { get; set; }
+
         /// <summary>
         /// Max Anisotropy. Values range from 0 - 16. Set to -1 to let the game decide.
         /// </summary>
