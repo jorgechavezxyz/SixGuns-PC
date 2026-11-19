@@ -2025,6 +2025,7 @@ namespace Ryujinx.Ava.UI.ViewModels
                 Cursor = Cursor.Default;
 
                 SetMainContent(null);
+                Remaster.DebugReport.GameStopped(); // the launcher shows a hint when the run went wrong
 
                 AppHost = null;
 

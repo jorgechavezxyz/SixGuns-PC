@@ -50,9 +50,47 @@ public partial class RemasterLauncherView : UserControl
         ShowPortVersion();
         _portRefresh = RefreshPort();
         Refresh();
+        DebugReport.GameExited += () =>
+        {
+            string problem = DebugReport.GameProblem();
+            if (problem != null) ShowProblem(problem);
+        };
+        if (DebugReport.ClosedWhileRunning())
+            ShowProblem("The launcher closed while the game was running.");
         if (_step == 3 && GameInstaller.NeedsRebuild(RemasterProfile.GameRoot, RemasterProfile.SdBuilder))
             _ = RebuildGame();
         _ = CheckForUpdates(manual: false);
+    }
+
+    private const string LogHint = " Press “Save log to Desktop” below and send SixGuns-log.txt for help.";
+
+    private void ShowProblem(string problem)
+    {
+        Status.Text = problem + LogHint;
+        Status.Foreground = ErrorText;
+    }
+
+    private void SaveLog(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            string firmware = null;
+            try { firmware = _window.ContentManager.GetCurrentFirmwareVersion()?.VersionString; } catch { }
+            var (version, _) = RemasterUpdater.Current;
+            string tag = null;
+            try { tag = PortUpdater.Choose(RemasterProfile.PortCache, RemasterProfile.BundledNro, RemasterProfile.SdBuilder).Tag; } catch { }
+            Ryujinx.Common.Logging.Logger.Flush();
+            string path = DebugReport.Save(version.ToString(3), tag, firmware);
+            Status.Foreground = NormalText;
+            Status.Text = $"Saved {Path.GetFileName(path)} to your " + (Path.GetDirectoryName(path) == Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory) ? "Desktop." : "home folder.") +
+                          " Personal details were removed; keys, game files and saves are not in it.";
+            try { Ryujinx.Common.Helper.OpenHelper.LocateFile(path); } catch { }
+        }
+        catch (Exception ex)
+        {
+            Status.Foreground = ErrorText;
+            Status.Text = "Couldn't save the log. " + ex.Message;
+        }
     }
 
     /// <summary>Fetches the newest SixGuns-NX release's port (the one Switch players update to) in the background.
@@ -222,7 +260,7 @@ public partial class RemasterLauncherView : UserControl
         catch (Exception ex)
         {
             Ryujinx.Common.Logging.Logger.Error?.Print(Ryujinx.Common.Logging.LogClass.Application, ex.ToString());
-            Status.Text = "That couldn't finish. " + ex.Message;
+            Status.Text = "That couldn't finish. " + ex.Message + LogHint;
             Status.Foreground = ErrorText;
         }
         finally
@@ -365,12 +403,13 @@ public partial class RemasterLauncherView : UserControl
                 throw new InvalidDataException("The bundled port could not be loaded. Extract a fresh copy of the launcher.");
             _window.ViewModel.SelectedApplication = apps[0];
             _window.ViewModel.SelectedIcon = apps[0].Icon;
+            DebugReport.GameStarting();
             await _window.ViewModel.LoadApplication(apps[0]);
         }
         catch (Exception ex)
         {
             Ryujinx.Common.Logging.Logger.Error?.Print(Ryujinx.Common.Logging.LogClass.Application, ex.ToString());
-            Status.Text = "Couldn't start the game. " + ex.Message;
+            Status.Text = "Couldn't start the game. " + ex.Message + LogHint;
             Status.Foreground = ErrorText;
         }
         finally { PlayButton.IsEnabled = true; }

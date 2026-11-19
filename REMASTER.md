@@ -30,6 +30,10 @@ For LAN play, use the game's Multiplayer menu. Each player needs the same port a
 
 The launcher checks this project's GitHub releases when it starts and shows **Update** when a newer version is out (or use **Check for updates**). The update is downloaded, checked against the release's SHA256SUMS.txt and installed in place; the launcher then restarts and rebuilds the game from the official files it kept in the game folder (`base.apk`, `obb/`), so you don't choose them again. Saves, settings, keys, firmware, your own mods and a portable `remaster-data` folder are kept. On macOS, keep the app in Applications so it can update itself.
 
+## Problems
+
+If the game won't start or crashes, press **Save log to Desktop** at the bottom of the launcher. It saves **SixGuns-log.txt** to your Desktop with the game's and emulator's newest logs, the launcher and port versions and your installed mods; send that file when you ask for help. Your user and computer names, home folder path, public IP addresses and anything key-like are removed first, and keys, firmware, game files and saves are never included. After a crash the launcher reminds you of the button.
+
 ## Your data
 
 The launcher uses a separate **SixGunsRemasterNX** application-data folder. It does not use the normal Ryujinx profile or shared `.switch` keys. Game files and saves are under `sdcard/switch/sixguns/` inside that folder. **Set up files again** replaces managed game files while preserving saves, preferences, identity and mods.

@@ -114,6 +114,7 @@
           <StackPanel Orientation="Horizontal" Spacing="18">
             <Button x:Name="RepairButton" Content="Set up files again" Classes="link" Click="RestartSetup" IsVisible="False" />
             <Button x:Name="CheckUpdatesButton" Content="Check for updates" Classes="link" Click="CheckForUpdatesClicked" />
+            <Button x:Name="SaveLogButton" Content="Save log to Desktop" Classes="link" Click="SaveLog" ToolTip.Tip="Saves SixGuns-log.txt to your Desktop to send for help. Personal details are removed; keys, game files and saves are never included." />
           </StackPanel>
           <TextBlock x:Name="VersionLabel" FontSize="11" Foreground="#8E9996" />
           <TextBlock Text="Free and open source · licenses in LICENSE.txt" FontSize="11" Foreground="#8E9996" />
