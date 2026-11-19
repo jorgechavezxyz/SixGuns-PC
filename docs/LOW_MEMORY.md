@@ -1,6 +1,7 @@
 # Six Guns: constrained host memory
 
-Local test patch for the desktop launcher. Published 0.1.2 remains unchanged.
+Resource policies introduced in desktop launcher 0.1.3 preview.
+The previous 0.1.2 release remains available for comparison/rollback.
 
 ## Changes
 

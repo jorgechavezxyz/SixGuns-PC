@@ -55,3 +55,17 @@ All paths are relative to this repository or its parent, `remaster-nx`. Build pr
 - Validation status and remaining platform checks are recorded in the SSD's `remaster-nx/PLAN.md` and logs folder.
 
 Do not package the portable data directory, development test profiles, keys, firmware, game files or private research. Never push or publish without the owner's review.
+
+
+### Lower-memory systems (0.1.3 preview)
+
+The launcher automatically reduces GPU texture-cache retention on smaller systems
+and recognized shared-memory GPUs. On hosts reporting up to 6 GiB usable memory,
+Six Guns starts with a 2 GiB application-memory budget, reducing the large startup
+heap reservation. The normal emulated console memory configuration remains 4 GiB.
+Game graphics settings, resolution and controller mappings are unchanged.
+
+This is a preview improvement, not a guarantee of compatibility with every 6 GB
+laptop. Large mods or demanding scenes may require more game memory. If launch or
+play fails, use **Save log to Desktop** and share `SixGuns-log.txt` for diagnosis.
+See [memory policy and validation](docs/LOW_MEMORY.md) in the source repository.
