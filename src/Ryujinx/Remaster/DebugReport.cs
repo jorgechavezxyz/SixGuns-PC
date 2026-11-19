@@ -85,6 +85,17 @@ internal static partial class DebugReport
     /// <summary>Writes the report to the Desktop (or the home folder when there is none) and returns its path.</summary>
     public static string Save(string launcherVersion, string portTag, string firmware)
     {
+        string folder = Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory);
+        if (string.IsNullOrEmpty(folder) || !Directory.Exists(folder))
+            folder = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        string path = Path.Combine(folder, FileName);
+        File.WriteAllText(path, Build(launcherVersion, portTag, firmware), new UTF8Encoding(false));
+        return path;
+    }
+
+    // Shared by export and diagnostics tests; collecting a report never writes to user folders.
+    internal static string Build(string launcherVersion, string portTag, string firmware)
+    {
         var text = new StringBuilder();
         text.AppendLine("Six Guns Remaster-NX debug log");
         text.AppendLine($"Saved:     {DateTime.Now:yyyy-MM-dd HH:mm:ss zzz}");
@@ -107,12 +118,7 @@ internal static partial class DebugReport
         }
         if (emulatorLogs.Count == 0) AppendSection(text, "Emulator log", () => "");
 
-        string folder = Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory);
-        if (string.IsNullOrEmpty(folder) || !Directory.Exists(folder))
-            folder = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-        string path = Path.Combine(folder, FileName);
-        File.WriteAllText(path, Redact(text.ToString()), new UTF8Encoding(false));
-        return path;
+        return Redact(text.ToString());
     }
 
     private static void AppendSection(StringBuilder text, string title, Func<string> body)

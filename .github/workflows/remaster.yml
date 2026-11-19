@@ -77,6 +77,8 @@ jobs:
           exe=sd-builder/sixguns-sd-build; [ -f "$exe.exe" ] && exe="$exe.exe"
           "$exe" --self-test | tee sd-builder-selftest.txt
           grep -q "nro_sha256=$nro" sd-builder-selftest.txt
+      - name: Crash and launch diagnostic tests
+        run: dotnet run --project tests/Remaster.Diagnostics -c Release
       - name: Installer safety tests
         shell: bash
         run: |
