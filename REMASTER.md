@@ -34,6 +34,8 @@ The launcher checks this project's GitHub releases when it starts and shows **Up
 
 If the game won't start or crashes, press **Save log to Desktop** at the bottom of the launcher. It saves **SixGuns-log.txt** to your Desktop with the game's and emulator's newest logs, the launcher and port versions and your installed mods; send that file when you ask for help. Your user and computer names, home folder path, public IP addresses and anything key-like are removed first, and keys, firmware, game files and saves are never included. After a crash the launcher reminds you of the button.
 
+The game uses Vulkan graphics. If your PC has no Vulkan driver, or the game closes while starting with Vulkan (common with old laptop graphics drivers), the launcher switches to OpenGL by itself and says so; **Use Vulkan again** at the bottom switches back, for example after updating your graphics driver.
+
 ## Your data
 
 The launcher uses a separate **SixGunsRemasterNX** application-data folder. It does not use the normal Ryujinx profile or shared `.switch` keys. Game files and saves are under `sdcard/switch/sixguns/` inside that folder. **Set up files again** replaces managed game files while preserving saves, preferences, identity and mods.

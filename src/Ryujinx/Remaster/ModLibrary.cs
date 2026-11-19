@@ -71,22 +71,32 @@ public static partial class ModLibrary
         {
             mod = ReadPackage(source, true, null);
             target = System.IO.Path.Combine(Folder(root), mod.Id + ".sgmod");
-            foreach (var old in List(root).Where(m => m.Package && m.Id == mod.Id && !SamePath(m.Path, target)))
-                System.IO.File.Delete(old.Path);
         }
         else if (ext == ".zip")
         {
             mod = ReadZip(source, true, null);
             target = System.IO.Path.Combine(Folder(root), System.IO.Path.GetFileName(source));
-            string disabled = System.IO.Path.Combine(DisabledFolder(root), System.IO.Path.GetFileName(source));
-            if (System.IO.File.Exists(disabled)) System.IO.File.Delete(disabled);
         }
         else throw new InvalidDataException("Choose a Six Guns mod: a .sgmod package or a mod .zip.");
-        if (SamePath(source, target)) return mod with { Path = target };
-        Directory.CreateDirectory(Folder(root));
-        string part = target + ".part";
-        System.IO.File.Copy(source, part, true);
-        System.IO.File.Move(part, target, true);
+        if (!SamePath(source, target))
+        {
+            // the new copy is in place before anything old is removed: a failed copy (full disk, file in use)
+            // leaves the installed mod as it was
+            Directory.CreateDirectory(Folder(root));
+            string part = target + ".part";
+            try
+            {
+                System.IO.File.Copy(source, part, true);
+                System.IO.File.Move(part, target, true);
+            }
+            finally { if (System.IO.File.Exists(part)) System.IO.File.Delete(part); }
+        }
+        // then the older copies: the same package id under another file name (or turned off), or the same zip turned off
+        foreach (var old in List(root))
+        {
+            bool same = ext == ".sgmod" ? old.Package && old.Id == mod.Id : !old.Package && !old.Enabled && old.File.Equals(System.IO.Path.GetFileName(source), StringComparison.OrdinalIgnoreCase);
+            if (same && !SamePath(old.Path, target)) System.IO.File.Delete(old.Path);
+        }
         return Read(target, true, ReadStatus(root));
     }
 
@@ -121,7 +131,7 @@ public static partial class ModLibrary
         }
         catch (JsonException) { throw new InvalidDataException("This mod's mod.json is not valid."); }
         if (m.ValueKind != JsonValueKind.Object) throw new InvalidDataException("This mod's mod.json is not valid.");
-        if (m.TryGetProperty("format", out var f) && (f.ValueKind != JsonValueKind.Number || f.GetInt32() != Format))
+        if (m.TryGetProperty("format", out var f) && (f.ValueKind != JsonValueKind.Number || !f.TryGetInt32(out int format) || format != Format))
             throw new InvalidDataException("This mod needs a newer Six Guns. Check for updates first.");
         string id = Str(m, "id"), name = Str(m, "name");
         if (!IdPattern().IsMatch(id)) throw new InvalidDataException("This mod's mod.json has no valid \"id\".");

@@ -32,27 +32,40 @@ internal static partial class DebugReport
     /// <summary>Raised on the UI thread when the game has returned to the launcher.</summary>
     public static event Action GameExited;
 
-    public static void GameStarting()
+    private static System.Threading.Timer _confirm;
+
+    /// <summary>The game is starting with this graphics backend ("vulkan" / "opengl"); after
+    /// GraphicsChoice.ConfirmAfter of running the marker also says "ok" (the backend works on this PC).</summary>
+    public static void GameStarting(string backend)
     {
-        try { File.WriteAllText(Marker, DateTime.Now.ToString("O")); } catch { /* only a hint for the next start */ }
+        try { File.WriteAllText(Marker, DateTime.Now.ToString("O") + "\n" + backend + "\n"); } catch { /* only a hint for the next start */ }
+        _confirm?.Dispose();
+        _confirm = new System.Threading.Timer(_ =>
+        {
+            try { if (File.Exists(Marker)) File.AppendAllText(Marker, "ok\n"); } catch { }
+        }, null, GraphicsChoice.ConfirmAfter, System.Threading.Timeout.InfiniteTimeSpan);
     }
 
     public static void GameStopped()
     {
+        _confirm?.Dispose();
+        _confirm = null;
         try { File.Delete(Marker); } catch { }
         GameExited?.Invoke();
     }
 
-    /// <summary>At launcher start: whether the launcher closed while the game was running last time (then forgets it).</summary>
-    public static bool ClosedWhileRunning()
+    /// <summary>At launcher start: whether the launcher closed while the game was running last time, with that
+    /// run's graphics backend and whether it had run long enough to count as working (then forgets it).</summary>
+    public static (bool Closed, string Backend, bool Confirmed) ClosedWhileRunning()
     {
         try
         {
-            if (!File.Exists(Marker)) return false;
+            if (!File.Exists(Marker)) return (false, null, false);
+            string[] lines = File.ReadAllLines(Marker);
             File.Delete(Marker);
-            return true;
+            return (true, lines.Length > 1 ? lines[1].Trim() : null, Array.IndexOf(lines, "ok") >= 0);
         }
-        catch { return false; }
+        catch { return (false, null, false); }
     }
 
     /// <summary>After the game returned: what went wrong in that run according to its log.txt, or null.</summary>
@@ -79,6 +92,7 @@ internal static partial class DebugReport
         text.AppendLine($"System:    {RuntimeInformation.OSDescription} ({RuntimeInformation.OSArchitecture}), " +
                         $"{Environment.ProcessorCount} CPU threads, {GC.GetGCMemoryInfo().TotalAvailableMemoryBytes / (1024 * 1024 * 1024.0):0.#} GB memory");
         text.AppendLine($"Firmware:  {firmware ?? "not installed"}");
+        text.AppendLine($"Graphics:  {GraphicsChoice.Backend()}" + (GraphicsChoice.ForcedOpenGl ? " (switched to OpenGL after Vulkan failed)" : ""));
         text.AppendLine($"Keys:      {(File.Exists(Path.Combine(AppDataManager.KeysDirPath, "prod.keys")) ? "present" : "missing")} (never included)");
         text.AppendLine($"Game:      {(GameInstaller.IsInstalled(RemasterProfile.GameRoot) ? "installed" : "not installed")}");
         AppendSection(text, "Game files", () => GameFiles());

@@ -55,14 +55,33 @@ public partial class RemasterLauncherView : UserControl
             string problem = DebugReport.GameProblem();
             if (problem != null) ShowProblem(problem);
         };
-        if (DebugReport.ClosedWhileRunning())
+        var last = DebugReport.ClosedWhileRunning();
+        if (last.Closed && last.Backend == "vulkan" && !last.Confirmed &&
+            GraphicsChoice.UseOpenGl("The launcher closed while the game was starting with Vulkan."))
+        {
+            Status.Foreground = NormalText;
+            Status.Text = "The game closed while starting with Vulkan graphics last time, so it now uses OpenGL. Press Play to try again.";
+        }
+        else if (last.Closed)
             ShowProblem("The launcher closed while the game was running.");
+        ShowGraphics();
         if (_step == 3 && GameInstaller.NeedsRebuild(RemasterProfile.GameRoot, RemasterProfile.SdBuilder))
             _ = RebuildGame();
         _ = CheckForUpdates(manual: false);
     }
 
-    private const string LogHint = " Press “Save log to Desktop” below and send SixGuns-log.txt for help.";
+    /// <summary>The "Use Vulkan again" link, shown only after the launcher switched this PC to OpenGL.</summary>
+    private void ShowGraphics() => VulkanAgainButton.IsVisible = GraphicsChoice.ForcedOpenGl;
+
+    private void UseVulkanAgain(object sender, RoutedEventArgs e)
+    {
+        GraphicsChoice.UseVulkanAgain();
+        ShowGraphics();
+        Status.Foreground = NormalText;
+        Status.Text = "The game uses Vulkan graphics again from the next Play. If it closes while starting, the launcher switches back to OpenGL.";
+    }
+
+    private const string LogHint =" Press “Save log to Desktop” below and send SixGuns-log.txt for help.";
 
     private void ShowProblem(string problem)
     {
@@ -403,8 +422,7 @@ public partial class RemasterLauncherView : UserControl
                 throw new InvalidDataException("The bundled port could not be loaded. Extract a fresh copy of the launcher.");
             _window.ViewModel.SelectedApplication = apps[0];
             _window.ViewModel.SelectedIcon = apps[0].Icon;
-            DebugReport.GameStarting();
-            await _window.ViewModel.LoadApplication(apps[0]);
+            await StartGame(apps[0]);
         }
         catch (Exception ex)
         {
@@ -413,6 +431,31 @@ public partial class RemasterLauncherView : UserControl
             Status.Foreground = ErrorText;
         }
         finally { PlayButton.IsEnabled = true; }
+    }
+
+    /// <summary>Starts the game; when starting with Vulkan throws, switches this PC to OpenGL and tries once more.
+    /// (A Vulkan driver that crashes the process instead is caught at the next start: see Initialize.)</summary>
+    private async Task StartGame(Ryujinx.Ava.Systems.AppLibrary.ApplicationData app)
+    {
+        var backend = GraphicsChoice.Backend();
+        DebugReport.GameStarting(backend == Ryujinx.Common.Configuration.GraphicsBackend.Vulkan ? "vulkan" : "opengl");
+        try
+        {
+            await _window.ViewModel.LoadApplication(app);
+        }
+        catch (Exception ex) when (backend == Ryujinx.Common.Configuration.GraphicsBackend.Vulkan && !OperatingSystem.IsMacOS())
+        {
+            Ryujinx.Common.Logging.Logger.Error?.Print(Ryujinx.Common.Logging.LogClass.Application, "Starting with Vulkan failed: " + ex);
+            DebugReport.GameStopped();
+            try { _window.ViewModel.AppHost?.DisposeContext(); } catch { }
+            _window.ViewModel.AppHost = null;
+            if (!GraphicsChoice.UseOpenGl("Starting with Vulkan failed: " + ex.Message)) throw;
+            ShowGraphics();
+            Status.Foreground = NormalText;
+            Status.Text = "Vulkan graphics didn't start on this PC. Trying OpenGL…";
+            DebugReport.GameStarting("opengl");
+            await _window.ViewModel.LoadApplication(app);
+        }
     }
 
     private async void Controls(object sender, RoutedEventArgs e)
@@ -516,7 +559,7 @@ public partial class RemasterLauncherView : UserControl
             Status.Foreground = NormalText;
             Status.Text = done;
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException)
+        catch (Exception ex) // never let a bad mod file close the launcher
         {
             ShowMods();
             Status.Foreground = ErrorText;
@@ -536,7 +579,7 @@ public partial class RemasterLauncherView : UserControl
             Status.Foreground = NormalText;
             Status.Text = $"{mod.Name} added." + (mod.Map != null ? $" The {mod.Map} map is in the multiplayer lobby after you press Play." : "");
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException)
+        catch (Exception ex) // never let a bad mod file close the launcher
         {
             Status.Foreground = ErrorText;
             Status.Text = "That mod couldn't be added. " + ex.Message;

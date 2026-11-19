@@ -111,11 +111,12 @@
           <Button x:Name="CancelButton" Content="Cancel" Classes="link" Click="Cancel" IsVisible="False" />
         </StackPanel>
         <StackPanel Grid.Row="2" Spacing="4">
-          <StackPanel Orientation="Horizontal" Spacing="18">
+          <WrapPanel Orientation="Horizontal" ItemSpacing="18">
             <Button x:Name="RepairButton" Content="Set up files again" Classes="link" Click="RestartSetup" IsVisible="False" />
             <Button x:Name="CheckUpdatesButton" Content="Check for updates" Classes="link" Click="CheckForUpdatesClicked" />
+            <Button x:Name="VulkanAgainButton" Content="Use Vulkan again" Classes="link" Click="UseVulkanAgain" IsVisible="False" ToolTip.Tip="This PC was switched to OpenGL graphics after Vulkan failed. Vulkan is usually faster; try it again after updating your graphics driver." />
             <Button x:Name="SaveLogButton" Content="Save log to Desktop" Classes="link" Click="SaveLog" ToolTip.Tip="Saves SixGuns-log.txt to your Desktop to send for help. Personal details are removed; keys, game files and saves are never included." />
-          </StackPanel>
+          </WrapPanel>
           <TextBlock x:Name="VersionLabel" FontSize="11" Foreground="#8E9996" />
           <TextBlock Text="Free and open source · licenses in LICENSE.txt" FontSize="11" Foreground="#8E9996" />
           <TextBlock Text="Unofficial fan port. Six Guns belongs to Gameloft.&#10;Game files, Switch keys and firmware are not included." FontSize="11" Foreground="#8E9996" TextWrapping="Wrap" />

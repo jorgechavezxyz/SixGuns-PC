@@ -62,7 +62,7 @@ internal static class RemasterProfile
         config.System.UseHypervisor.Value = OperatingSystem.IsMacOS() && RuntimeInformation.ProcessArchitecture == Architecture.Arm64;
         config.System.EnableInternetAccess.Value = true; // The port uses native sockets for LAN play.
         config.System.UseInputGlobalConfig.Value = false;
-        config.Graphics.GraphicsBackend.Value = GraphicsBackend.Vulkan;
+        config.Graphics.GraphicsBackend.Value = GraphicsChoice.Backend(); // Vulkan, or OpenGL where it fails
         config.Graphics.ResScale.Value = 1;
         config.Graphics.VSyncMode.Value = VSyncMode.Switch;
         config.Graphics.EnableCustomVSyncInterval.Value = false;
