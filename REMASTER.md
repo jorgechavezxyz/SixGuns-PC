@@ -68,4 +68,4 @@ Game graphics settings, resolution and controller mappings are unchanged.
 This is a preview improvement, not a guarantee of compatibility with every 6 GB
 laptop. Large mods or demanding scenes may require more game memory. If launch or
 play fails, use **Save log to Desktop** and share `SixGuns-log.txt` for diagnosis.
-See [memory policy and validation](docs/LOW_MEMORY.md) in the source repository.
+See [memory policy and validation](https://github.com/jorgechavezxyz/SixGuns-PC/blob/main/docs/LOW_MEMORY.md) in the source repository.
